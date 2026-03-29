@@ -1,63 +1,85 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import Sidebar from "@/components/Sidebar";
+import KPIBar from "@/components/KPIBar";
+import SourceTable from "@/components/SourceTable";
+import RevenueChart from "@/components/RevenueChart";
+import TrendChart from "@/components/TrendChart";
+import PipelineFunnel from "@/components/PipelineFunnel";
+import CampaignTables from "@/components/CampaignTables";
+
+export default function Dashboard() {
+  const [selectedSource, setSelectedSource] = useState<string | null>(null);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex h-full bg-white">
+      <Sidebar />
+
+      {/* Main content — offset by sidebar width */}
+      <main className="ml-[220px] flex-1 overflow-y-auto min-h-full">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white border-b border-[#e5e5e5] px-6 py-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-sm font-semibold text-[#0a0a0a]">Overview</h1>
+            <p className="text-[11px] text-[#a3a3a3]">March 2026 · All sources</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-[11px] text-[#525252] border border-[#e5e5e5] rounded-md px-2.5 py-1.5">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <rect
+                  x="1"
+                  y="2"
+                  width="10"
+                  height="9"
+                  rx="1"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
+                <path
+                  d="M4 1v2M8 1v2M1 5h10"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Mar 1 – Mar 28, 2026
+            </div>
+            <button className="text-[11px] font-medium text-white bg-[#0a0a0a] px-3 py-1.5 rounded-md hover:bg-[#262626] transition-colors">
+              Export
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Dashboard content */}
+        <div className="px-6 py-5 space-y-5 max-w-[1400px]">
+          {/* 1. KPI Bar */}
+          <KPIBar />
+
+          {/* 2. Source Table */}
+          <SourceTable
+            selectedSource={selectedSource}
+            onSelectSource={setSelectedSource}
+          />
+
+          {/* 3 + 4. Charts row */}
+          <div className="grid grid-cols-2 gap-3">
+            <RevenueChart />
+            <TrendChart selectedSource={selectedSource} />
+          </div>
+
+          {/* 5. Pipeline */}
+          <PipelineFunnel />
+
+          {/* 6. Campaigns */}
+          <CampaignTables />
+
+          {/* Footer */}
+          <div className="pt-2 pb-4 border-t border-[#f5f5f5]">
+            <p className="text-[10px] text-[#d4d4d4] text-center">
+              ROI Dashboard · Mock data · Last updated Mar 28, 2026
+            </p>
+          </div>
         </div>
       </main>
     </div>

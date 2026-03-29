@@ -1,0 +1,139 @@
+"use client";
+
+import { motion } from "framer-motion";
+
+type NavItem = {
+  label: string;
+  icon: React.ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+};
+
+const navItems: NavItem[] = [
+  {
+    label: "Overview",
+    active: true,
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+        <rect x="1" y="1" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="8.5" y="1" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="1" y="8.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+      </svg>
+    ),
+  },
+  {
+    label: "Lead Sources",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+        <circle cx="7.5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M2.5 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Pipeline",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+        <path d="M1.5 7.5h12M1.5 3.5h9M1.5 11.5h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Campaigns",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+        <path d="M7.5 1.5L9.5 5.5L14 6.2L10.75 9.3L11.5 13.8L7.5 11.7L3.5 13.8L4.25 9.3L1 6.2L5.5 5.5L7.5 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Settings",
+    disabled: true,
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+        <path d="M6.3 1.5L6 3.2a5 5 0 00-1.2.7L3.2 3.3 1.5 6.3l1.3 1.1a5 5 0 000 1.4L1.5 9.8l1.7 2.9 1.6-.6a5 5 0 001.2.7l.3 1.7h3.4l.3-1.7a5 5 0 001.2-.7l1.6.6 1.7-2.9-1.3-1.1a5 5 0 000-1.4l1.3-1.1-1.7-2.9-1.6.6A5 5 0 009.1 3.2L8.7 1.5H6.3z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+        <circle cx="7.5" cy="7.5" r="1.8" stroke="currentColor" strokeWidth="1.2" />
+      </svg>
+    ),
+  },
+];
+
+export default function Sidebar() {
+  return (
+    <motion.aside
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="fixed left-0 top-0 h-full w-[220px] border-r border-[#e5e5e5] bg-white flex flex-col z-10"
+    >
+      {/* Logo */}
+      <div className="px-4 py-4 border-b border-[#e5e5e5]">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-[#0a0a0a] rounded flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 9L6 3L10 9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <span className="text-sm font-semibold text-[#0a0a0a] tracking-tight">
+            ROI Dash
+          </span>
+        </div>
+        <p className="text-[11px] text-[#a3a3a3] mt-1 ml-8 leading-none">
+          Marketing Attribution
+        </p>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-2 py-3">
+        <p className="text-[10px] font-medium text-[#a3a3a3] uppercase tracking-widest px-2 mb-2">
+          Analytics
+        </p>
+        <ul className="space-y-0.5">
+          {navItems.map((item) => (
+            <li key={item.label}>
+              <button
+                disabled={item.disabled}
+                className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors text-left ${
+                  item.active
+                    ? "bg-[#f5f5f5] text-[#0a0a0a] font-medium"
+                    : item.disabled
+                    ? "text-[#d4d4d4] cursor-not-allowed"
+                    : "text-[#525252] hover:bg-[#f5f5f5] hover:text-[#0a0a0a]"
+                }`}
+              >
+                <span
+                  className={
+                    item.active
+                      ? "text-[#0a0a0a]"
+                      : item.disabled
+                      ? "text-[#d4d4d4]"
+                      : "text-[#a3a3a3]"
+                  }
+                >
+                  {item.icon}
+                </span>
+                {item.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-[#e5e5e5]">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-[#e5e5e5] flex items-center justify-center text-[10px] font-semibold text-[#525252]">
+            DW
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-[#0a0a0a] truncate">
+              D. Wooster
+            </p>
+            <p className="text-[10px] text-[#a3a3a3]">Admin</p>
+          </div>
+        </div>
+      </div>
+    </motion.aside>
+  );
+}
