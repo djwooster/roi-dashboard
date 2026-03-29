@@ -87,8 +87,9 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
 
   const isActive = (item: NavItem) => {
     if (item.page === "integrations") return currentPage === "integrations";
-    // All overview-related items are active when on overview
-    return currentPage === "overview" && item.page === "overview";
+    // Only the "Overview" item itself is active on the overview page
+    if (item.label === "Overview") return currentPage === "overview";
+    return false;
   };
 
   return (
@@ -133,10 +134,10 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
                       ? "bg-[#f5f5f5] text-[#0a0a0a] font-medium"
                       : item.disabled
                       ? "text-[#d4d4d4] cursor-not-allowed"
-                      : "text-[#525252] hover:bg-[#f5f5f5] hover:text-[#0a0a0a]"
+                      : "text-[#0a0a0a] hover:bg-[#f5f5f5]"
                   }`}
                 >
-                  <span className={active ? "text-[#0a0a0a]" : "text-[#a3a3a3]"}>
+                  <span className={active ? "text-[#0a0a0a]" : "text-[#525252]"}>
                     {item.icon}
                   </span>
                   <span className="flex-1">{item.label}</span>
@@ -166,7 +167,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
                       ? "bg-[#f5f5f5] text-[#0a0a0a] font-medium"
                       : item.disabled
                       ? "text-[#d4d4d4] cursor-not-allowed"
-                      : "text-[#525252] hover:bg-[#f5f5f5] hover:text-[#0a0a0a]"
+                      : "text-[#0a0a0a] hover:bg-[#f5f5f5]"
                   }`}
                 >
                   <span
@@ -175,7 +176,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
                         ? "text-[#0a0a0a]"
                         : item.disabled
                         ? "text-[#d4d4d4]"
-                        : "text-[#a3a3a3]"
+                        : "text-[#525252]"
                     }
                   >
                     {item.icon}
