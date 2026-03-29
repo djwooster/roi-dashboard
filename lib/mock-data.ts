@@ -32,6 +32,23 @@ export type CampaignBreakdown = {
   facebook: Campaign[];
 };
 
+export type DateRange = "30d" | "90d" | "6mo" | "ytd";
+
+export const dateRangeLabels: Record<DateRange, string> = {
+  "30d": "Last 30 Days",
+  "90d": "Last 90 Days",
+  "6mo": "Last 6 Months",
+  ytd: "Year to Date",
+};
+
+// Volume multipliers for date range changes (CPL/ROAS are ratios, stay stable)
+export const dateRangeMultipliers: Record<DateRange, number> = {
+  "30d": 1.0,
+  "90d": 2.85,
+  "6mo": 5.4,
+  ytd: 2.2,
+};
+
 export const leadSources: LeadSource[] = [
   {
     id: "google",
@@ -91,6 +108,70 @@ export const leadSources: LeadSource[] = [
     appointments: 44,
     closedRevenue: 124000,
     avgDealValue: 6800,
+    color: "#b5b5b5",
+  },
+];
+
+// Last period data for comparison mode
+export const lastPeriodSources: LeadSource[] = [
+  {
+    id: "google",
+    name: "Google Ads",
+    leads: 251,
+    spend: 16800,
+    appointments: 174,
+    closedRevenue: 538000,
+    avgDealValue: 8200,
+    color: "#525252",
+  },
+  {
+    id: "facebook",
+    name: "Facebook Ads",
+    leads: 168,
+    spend: 8400,
+    appointments: 108,
+    closedRevenue: 302000,
+    avgDealValue: 6900,
+    color: "#737373",
+  },
+  {
+    id: "homeshow",
+    name: "Home Show",
+    leads: 72,
+    spend: 10500,
+    appointments: 61,
+    closedRevenue: 244000,
+    avgDealValue: 10800,
+    color: "#a3a3a3",
+  },
+  {
+    id: "referral",
+    name: "Referral",
+    leads: 128,
+    spend: 3200,
+    appointments: 116,
+    closedRevenue: 428000,
+    avgDealValue: 9400,
+    color: "#404040",
+  },
+  {
+    id: "organic",
+    name: "Organic Search",
+    leads: 84,
+    spend: 1600,
+    appointments: 51,
+    closedRevenue: 162000,
+    avgDealValue: 7400,
+    color: "#8a8a8a",
+  },
+  {
+    id: "kiosk",
+    name: "iPad Kiosk",
+    leads: 58,
+    spend: 2200,
+    appointments: 40,
+    closedRevenue: 108000,
+    avgDealValue: 6600,
     color: "#b5b5b5",
   },
 ];
@@ -163,46 +244,72 @@ export const pipelineStages: PipelineStage[] = [
 
 export const campaignBreakdown: CampaignBreakdown = {
   google: [
-    {
-      name: "Brand — Exact Match",
-      leads: 94,
-      spend: 4200,
-      revenue: 218000,
-    },
-    {
-      name: "Windows — Competitor",
-      leads: 112,
-      spend: 8600,
-      revenue: 264000,
-    },
-    {
-      name: "Doors — Local Intent",
-      leads: 78,
-      spend: 5600,
-      revenue: 130000,
-    },
+    { name: "Brand — Exact Match", leads: 94, spend: 4200, revenue: 218000 },
+    { name: "Windows — Competitor", leads: 112, spend: 8600, revenue: 264000 },
+    { name: "Doors — Local Intent", leads: 78, spend: 5600, revenue: 130000 },
   ],
   facebook: [
-    {
-      name: "Spring Promo — Retarget",
-      leads: 72,
-      spend: 3100,
-      revenue: 148000,
-    },
-    {
-      name: "Lookalike — Past Buyers",
-      leads: 84,
-      spend: 4200,
-      revenue: 136000,
-    },
-    {
-      name: "Video — Top of Funnel",
-      leads: 42,
-      spend: 1900,
-      revenue: 64000,
-    },
+    { name: "Spring Promo — Retarget", leads: 72, spend: 3100, revenue: 148000 },
+    { name: "Lookalike — Past Buyers", leads: 84, spend: 4200, revenue: 136000 },
+    { name: "Video — Top of Funnel", leads: 42, spend: 1900, revenue: 64000 },
   ],
 };
+
+// Sub-channels shown in the drill-down drawer
+export type SubChannel = {
+  name: string;
+  leads: number;
+  spend: number;
+  revenue: number;
+};
+
+export const sourceSubChannels: Record<string, SubChannel[]> = {
+  google: [
+    { name: "Brand — Exact Match", leads: 94, spend: 4200, revenue: 218000 },
+    { name: "Windows — Competitor", leads: 112, spend: 8600, revenue: 264000 },
+    { name: "Doors — Local Intent", leads: 78, spend: 5600, revenue: 130000 },
+  ],
+  facebook: [
+    { name: "Spring Promo — Retarget", leads: 72, spend: 3100, revenue: 148000 },
+    { name: "Lookalike — Past Buyers", leads: 84, spend: 4200, revenue: 136000 },
+    { name: "Video — Top of Funnel", leads: 42, spend: 1900, revenue: 64000 },
+  ],
+  homeshow: [
+    { name: "Spring Home Expo", leads: 45, spend: 6000, revenue: 162000 },
+    { name: "Regional Builder Show", leads: 28, spend: 4200, revenue: 96000 },
+    { name: "Kitchen & Bath Fair", leads: 14, spend: 1800, revenue: 36000 },
+  ],
+  referral: [
+    { name: "Past Customer", leads: 68, spend: 0, revenue: 248000 },
+    { name: "Contractor Partner", leads: 42, spend: 1800, revenue: 158000 },
+    { name: "Online Review", leads: 32, spend: 1800, revenue: 92000 },
+  ],
+  organic: [
+    { name: "Windows Keywords", leads: 44, spend: 800, revenue: 94000 },
+    { name: "Doors Keywords", leads: 32, spend: 600, revenue: 68000 },
+    { name: "Brand Searches", leads: 20, spend: 400, revenue: 24000 },
+  ],
+  kiosk: [
+    { name: "Home Depot #4221", leads: 28, spend: 1100, revenue: 58000 },
+    { name: "Lowe's #0847", leads: 22, spend: 900, revenue: 44000 },
+    { name: "Expo Center", leads: 13, spend: 400, revenue: 22000 },
+  ],
+};
+
+// Monthly goal targets
+export const monthlyGoals = {
+  totalLeads: 1000,
+  totalSpend: 55000,
+  avgCPL: 65, // max budget (lower is better)
+  totalRevenue: 2500000,
+  blendedROAS: 40,
+};
+
+// Active ROAS alerts (sources performing below threshold)
+export const roasAlerts: string[] = ["facebook"];
+
+// Projection constants (current period: March, 28 days elapsed of 31)
+export const currentPeriod = { daysElapsed: 28, daysInMonth: 31 };
 
 // Derived helpers
 export function getCPL(source: LeadSource): number {
@@ -223,13 +330,15 @@ export function getROI(source: LeadSource): number {
     : 0;
 }
 
-export function getTotals() {
-  const totalLeads = leadSources.reduce((s, r) => s + r.leads, 0);
-  const totalSpend = leadSources.reduce((s, r) => s + r.spend, 0);
-  const totalRevenue = leadSources.reduce((s, r) => s + r.closedRevenue, 0);
+export function getTotals(multiplier = 1) {
+  const totalLeads = Math.round(
+    leadSources.reduce((s, r) => s + r.leads, 0) * multiplier
+  );
+  const totalSpend = leadSources.reduce((s, r) => s + r.spend, 0) * multiplier;
+  const totalRevenue =
+    leadSources.reduce((s, r) => s + r.closedRevenue, 0) * multiplier;
   const avgCPL = totalLeads > 0 ? totalSpend / totalLeads : 0;
   const blendedROAS = totalSpend > 0 ? totalRevenue / totalSpend : 0;
-
   return { totalLeads, totalSpend, totalRevenue, avgCPL, blendedROAS };
 }
 

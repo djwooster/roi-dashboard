@@ -1,18 +1,20 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { roasAlerts } from "@/lib/mock-data";
 
 type NavItem = {
   label: string;
+  page: string;
   icon: React.ReactNode;
-  active?: boolean;
   disabled?: boolean;
+  badge?: "roas-alert";
 };
 
 const navItems: NavItem[] = [
   {
     label: "Overview",
-    active: true,
+    page: "overview",
     icon: (
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
         <rect x="1" y="1" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
@@ -24,6 +26,8 @@ const navItems: NavItem[] = [
   },
   {
     label: "Lead Sources",
+    page: "overview",
+    badge: "roas-alert",
     icon: (
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
         <circle cx="7.5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2" />
@@ -33,6 +37,7 @@ const navItems: NavItem[] = [
   },
   {
     label: "Pipeline",
+    page: "overview",
     icon: (
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
         <path d="M1.5 7.5h12M1.5 3.5h9M1.5 11.5h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
@@ -41,6 +46,7 @@ const navItems: NavItem[] = [
   },
   {
     label: "Campaigns",
+    page: "overview",
     icon: (
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
         <path d="M7.5 1.5L9.5 5.5L14 6.2L10.75 9.3L11.5 13.8L7.5 11.7L3.5 13.8L4.25 9.3L1 6.2L5.5 5.5L7.5 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
@@ -48,7 +54,19 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    label: "Integrations",
+    page: "integrations",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+        <rect x="1" y="5" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.2" />
+        <rect x="10" y="5" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M5 7h5M7.5 4V2M7.5 11v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     label: "Settings",
+    page: "settings",
     disabled: true,
     icon: (
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
@@ -59,7 +77,20 @@ const navItems: NavItem[] = [
   },
 ];
 
-export default function Sidebar() {
+type Props = {
+  currentPage: string;
+  onNavigate: (page: string) => void;
+};
+
+export default function Sidebar({ currentPage, onNavigate }: Props) {
+  const hasROASAlert = roasAlerts.length > 0;
+
+  const isActive = (item: NavItem) => {
+    if (item.page === "integrations") return currentPage === "integrations";
+    // All overview-related items are active when on overview
+    return currentPage === "overview" && item.page === "overview";
+  };
+
   return (
     <motion.aside
       initial={{ opacity: 0, x: -10 }}
@@ -85,38 +116,75 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 py-3">
+      <nav className="flex-1 px-2 py-3 overflow-y-auto">
         <p className="text-[10px] font-medium text-[#a3a3a3] uppercase tracking-widest px-2 mb-2">
           Analytics
         </p>
         <ul className="space-y-0.5">
-          {navItems.map((item) => (
-            <li key={item.label}>
-              <button
-                disabled={item.disabled}
-                className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors text-left ${
-                  item.active
-                    ? "bg-[#f5f5f5] text-[#0a0a0a] font-medium"
-                    : item.disabled
-                    ? "text-[#d4d4d4] cursor-not-allowed"
-                    : "text-[#525252] hover:bg-[#f5f5f5] hover:text-[#0a0a0a]"
-                }`}
-              >
-                <span
-                  className={
-                    item.active
-                      ? "text-[#0a0a0a]"
+          {navItems.slice(0, 4).map((item) => {
+            const active = isActive(item);
+            return (
+              <li key={item.label}>
+                <button
+                  onClick={() => !item.disabled && onNavigate(item.page)}
+                  disabled={item.disabled}
+                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors text-left ${
+                    active
+                      ? "bg-[#f5f5f5] text-[#0a0a0a] font-medium"
                       : item.disabled
-                      ? "text-[#d4d4d4]"
-                      : "text-[#a3a3a3]"
-                  }
+                      ? "text-[#d4d4d4] cursor-not-allowed"
+                      : "text-[#525252] hover:bg-[#f5f5f5] hover:text-[#0a0a0a]"
+                  }`}
                 >
-                  {item.icon}
-                </span>
-                {item.label}
-              </button>
-            </li>
-          ))}
+                  <span className={active ? "text-[#0a0a0a]" : "text-[#a3a3a3]"}>
+                    {item.icon}
+                  </span>
+                  <span className="flex-1">{item.label}</span>
+                  {/* ROAS alert badge */}
+                  {item.badge === "roas-alert" && hasROASAlert && (
+                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        <p className="text-[10px] font-medium text-[#a3a3a3] uppercase tracking-widest px-2 mb-2 mt-4">
+          Setup
+        </p>
+        <ul className="space-y-0.5">
+          {navItems.slice(4).map((item) => {
+            const active = isActive(item);
+            return (
+              <li key={item.label}>
+                <button
+                  onClick={() => !item.disabled && onNavigate(item.page)}
+                  disabled={item.disabled}
+                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors text-left ${
+                    active
+                      ? "bg-[#f5f5f5] text-[#0a0a0a] font-medium"
+                      : item.disabled
+                      ? "text-[#d4d4d4] cursor-not-allowed"
+                      : "text-[#525252] hover:bg-[#f5f5f5] hover:text-[#0a0a0a]"
+                  }`}
+                >
+                  <span
+                    className={
+                      active
+                        ? "text-[#0a0a0a]"
+                        : item.disabled
+                        ? "text-[#d4d4d4]"
+                        : "text-[#a3a3a3]"
+                    }
+                  >
+                    {item.icon}
+                  </span>
+                  {item.label}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 

@@ -8,15 +8,8 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
-import { leadSources } from "@/lib/mock-data";
-
-const data = leadSources.map((s) => ({
-  name: s.name.replace(" Ads", "").replace(" Search", ""),
-  Revenue: s.closedRevenue,
-  Spend: s.spend,
-}));
+import { leadSources, dateRangeMultipliers, DateRange } from "@/lib/mock-data";
 
 function fmtK(v: number) {
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
@@ -24,9 +17,13 @@ function fmtK(v: number) {
   return `$${v}`;
 }
 
-function CustomTooltip({ active, payload, label }: {
+function CustomTooltip({
+  active,
+  payload,
+  label,
+}: {
   active?: boolean;
-  payload?: { name: string; value: number; color: string }[];
+  payload?: { name: string; value: number }[];
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
@@ -48,7 +45,18 @@ function CustomTooltip({ active, payload, label }: {
   );
 }
 
-export default function RevenueChart() {
+type Props = {
+  dateRange: DateRange;
+};
+
+export default function RevenueChart({ dateRange }: Props) {
+  const mult = dateRangeMultipliers[dateRange];
+  const data = leadSources.map((s) => ({
+    name: s.name.replace(" Ads", "").replace(" Search", ""),
+    Revenue: s.closedRevenue * mult,
+    Spend: s.spend * mult,
+  }));
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -91,12 +99,9 @@ export default function RevenueChart() {
             tickLine={false}
             width={48}
           />
-          <Tooltip
-            content={<CustomTooltip />}
-            cursor={{ fill: "#f5f5f5" }}
-          />
-          <Bar dataKey="Revenue" fill="#0a0a0a" radius={[2, 2, 0, 0]} />
-          <Bar dataKey="Spend" fill="#d4d4d4" radius={[2, 2, 0, 0]} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f5f5f5" }} />
+          <Bar dataKey="Revenue" fill="#0a0a0a" radius={[2, 2, 0, 0]} isAnimationActive />
+          <Bar dataKey="Spend" fill="#d4d4d4" radius={[2, 2, 0, 0]} isAnimationActive />
         </BarChart>
       </ResponsiveContainer>
     </motion.div>
