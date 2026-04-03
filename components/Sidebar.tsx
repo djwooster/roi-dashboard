@@ -125,9 +125,6 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
             ROI Dash
           </span>
         </div>
-        <p className="text-[11px] text-[#a3a3a3] mt-1 ml-8 leading-none">
-          Marketing Attribution
-        </p>
       </div>
 
       {/* Navigation */}
