@@ -94,10 +94,10 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Add user as owner member
+    // Add user as owner member (include email so team list can display it)
     const { error: memberError } = await supabase
       .from("members")
-      .insert({ org_id: org.id, user_id: user.id, role: "owner" });
+      .insert({ org_id: org.id, user_id: user.id, email: user.email, role: "owner" });
 
     if (memberError) {
       setError("Something went wrong setting up your account. Please try again.");

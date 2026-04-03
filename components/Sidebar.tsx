@@ -69,7 +69,6 @@ const navItems: NavItem[] = [
   {
     label: "Settings",
     page: "settings",
-    disabled: true,
     icon: (
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
         <path d="M6.3 1.5L6 3.2a5 5 0 00-1.2.7L3.2 3.3 1.5 6.3l1.3 1.1a5 5 0 000 1.4L1.5 9.8l1.7 2.9 1.6-.6a5 5 0 001.2.7l.3 1.7h3.4l.3-1.7a5 5 0 001.2-.7l1.6.6 1.7-2.9-1.3-1.1a5 5 0 000-1.4l1.3-1.1-1.7-2.9-1.6.6A5 5 0 009.1 3.2L8.7 1.5H6.3z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
@@ -102,7 +101,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
 
   const isActive = (item: NavItem) => {
     if (item.page === "integrations") return currentPage === "integrations";
-    // Only the "Overview" item itself is active on the overview page
+    if (item.page === "settings") return currentPage === "settings";
     if (item.label === "Overview") return currentPage === "overview";
     return false;
   };

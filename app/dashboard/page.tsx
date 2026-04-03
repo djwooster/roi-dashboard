@@ -12,6 +12,7 @@ import CampaignTables from "@/components/CampaignTables";
 import LiveTicker from "@/components/LiveTicker";
 import SourceDrawer from "@/components/SourceDrawer";
 import IntegrationsPage from "@/components/IntegrationsPage";
+import SettingsPage from "@/components/SettingsPage";
 import { leadSources, dateRangeLabels, DateRange } from "@/lib/mock-data";
 
 const DATE_RANGES: DateRange[] = ["30d", "90d", "6mo", "ytd"];
@@ -251,11 +252,14 @@ export default function Dashboard() {
     : null;
 
   const isOverview = currentPage === "overview";
-  const headerTitle = currentPage === "integrations" ? "Integrations" : "Overview";
-  const headerSub =
-    currentPage === "integrations"
-      ? "Connect your tools"
-      : `${dateRangeLabels[dateRange]} · All sources`;
+  const isIntegrations = currentPage === "integrations";
+  const isSettings = currentPage === "settings";
+  const headerTitle = isSettings ? "Settings" : isIntegrations ? "Integrations" : "Overview";
+  const headerSub = isSettings
+    ? "Manage your account and team"
+    : isIntegrations
+    ? "Connect your tools"
+    : `${dateRangeLabels[dateRange]} · All sources`;
 
   return (
     <div className="flex h-full bg-white">
@@ -324,7 +328,7 @@ export default function Dashboard() {
                   </p>
                 </div>
               </motion.div>
-            ) : (
+            ) : isIntegrations ? (
               <motion.div
                 key="integrations"
                 initial={{ opacity: 0 }}
@@ -334,7 +338,17 @@ export default function Dashboard() {
               >
                 <IntegrationsPage />
               </motion.div>
-            )}
+            ) : isSettings ? (
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SettingsPage />
+              </motion.div>
+            ) : null}
           </AnimatePresence>
         </main>
       </div>

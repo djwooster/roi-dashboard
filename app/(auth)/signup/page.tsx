@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +28,8 @@ export default function SignupPage() {
       return;
     }
 
-    router.push("/onboarding");
+    // Invited users skip onboarding — the invite accept flow handles org setup
+    router.push(inviteToken ? `/invite/${inviteToken}` : "/onboarding");
   }
 
   return (
