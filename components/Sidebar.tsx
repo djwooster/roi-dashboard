@@ -145,7 +145,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
                       ? "bg-[#f5f5f5] text-[#0a0a0a] font-medium"
                       : item.disabled
                       ? "text-[#d4d4d4] cursor-not-allowed"
-                      : "text-[#0a0a0a] hover:bg-[#f5f5f5]"
+                      : "text-[#0a0a0a] hover:bg-[#f5f5f5] cursor-pointer"
                   }`}
                 >
                   <span className={active ? "text-[#0a0a0a]" : "text-[#525252]"}>
@@ -178,7 +178,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
                       ? "bg-[#f5f5f5] text-[#0a0a0a] font-medium"
                       : item.disabled
                       ? "text-[#d4d4d4] cursor-not-allowed"
-                      : "text-[#0a0a0a] hover:bg-[#f5f5f5]"
+                      : "text-[#0a0a0a] hover:bg-[#f5f5f5] cursor-pointer"
                   }`}
                 >
                   <span
