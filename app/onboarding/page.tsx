@@ -81,6 +81,30 @@ export default function OnboardingPage() {
       return;
     }
 
+    // Create the organization
+    const { data: org, error: orgError } = await supabase
+      .from("organizations")
+      .insert({ name: companyName, industry, created_by: user.id })
+      .select("id")
+      .single();
+
+    if (orgError) {
+      setError("Something went wrong creating your organization. Please try again.");
+      setSaving(false);
+      return;
+    }
+
+    // Add user as owner member
+    const { error: memberError } = await supabase
+      .from("members")
+      .insert({ org_id: org.id, user_id: user.id, role: "owner" });
+
+    if (memberError) {
+      setError("Something went wrong setting up your account. Please try again.");
+      setSaving(false);
+      return;
+    }
+
     // Upsert profile row
     const { error: profileError } = await supabase.from("profiles").upsert({
       id: user.id,
@@ -100,7 +124,11 @@ export default function OnboardingPage() {
 
     // Mark onboarding complete in auth metadata so the proxy can read it
     await supabase.auth.updateUser({
-      data: { onboarding_completed: true, company_name: companyName },
+      data: {
+        onboarding_completed: true,
+        company_name: companyName,
+        org_id: org.id,
+      },
     });
 
     router.push("/dashboard");

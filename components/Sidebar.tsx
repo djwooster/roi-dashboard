@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { roasAlerts } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
 
 type NavItem = {
   label: string;
@@ -84,6 +86,19 @@ type Props = {
 
 export default function Sidebar({ currentPage, onNavigate }: Props) {
   const hasROASAlert = roasAlerts.length > 0;
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data: { user } }) => {
+        if (user) {
+          setUserEmail(user.email ?? null);
+          setCompanyName(user.user_metadata?.company_name ?? null);
+        }
+      });
+  }, []);
 
   const isActive = (item: NavItem) => {
     if (item.page === "integrations") return currentPage === "integrations";
@@ -192,14 +207,16 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
       {/* Footer */}
       <div className="px-4 py-3 border-t border-[#e5e5e5]">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-[#e5e5e5] flex items-center justify-center text-[10px] font-semibold text-[#525252]">
-            DW
+          <div className="w-6 h-6 rounded-full bg-[#e5e5e5] flex items-center justify-center text-[10px] font-semibold text-[#525252] shrink-0">
+            {userEmail ? userEmail[0].toUpperCase() : "—"}
           </div>
           <div className="min-w-0">
             <p className="text-xs font-medium text-[#0a0a0a] truncate">
-              D. Wooster
+              {userEmail ?? "—"}
             </p>
-            <p className="text-[10px] text-[#a3a3a3]">Admin</p>
+            <p className="text-[10px] text-[#a3a3a3] truncate">
+              {companyName ?? "My Company"}
+            </p>
           </div>
         </div>
       </div>
