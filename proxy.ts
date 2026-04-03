@@ -33,8 +33,14 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // /demo is public — no auth required
-  if (pathname.startsWith("/demo")) {
+  // Public routes — no auth required
+  if (pathname.startsWith("/demo") || pathname === "/") {
+    // Authenticated users visiting root get sent straight to their dashboard
+    if (user && pathname === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
     return supabaseResponse;
   }
 
