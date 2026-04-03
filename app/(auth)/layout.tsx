@@ -1,67 +1,56 @@
+import Image from "next/image";
+
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-full bg-[#0a0a0a] flex items-center justify-center px-4 py-12 overflow-hidden">
-      {/* Circuit board corner decorations */}
-      <CircuitCorner position="top-left" />
-      <CircuitCorner position="top-right" />
-      <CircuitCorner position="bottom-left" />
-      <CircuitCorner position="bottom-right" />
-
-      <div className="relative z-10 w-full flex items-center justify-center">
+    <div className="flex h-screen overflow-hidden">
+      {/* Left panel — form */}
+      <div className="flex-1 flex items-center justify-center bg-white px-8 py-12 overflow-y-auto">
         {children}
       </div>
-    </div>
-  );
-}
 
-function CircuitCorner({ position }: { position: "top-left" | "top-right" | "bottom-left" | "bottom-right" }) {
-  const isRight = position.includes("right");
-  const isBottom = position.includes("bottom");
+      {/* Right panel — image */}
+      <div className="hidden lg:block relative w-[45%] xl:w-1/2 flex-shrink-0">
+        <Image
+          src="https://images.pexels.com/photos/3184293/pexels-photo-3184293.jpeg"
+          alt="Marketing agency team collaborating"
+          fill
+          className="object-cover"
+          priority
+          sizes="(min-width: 1280px) 50vw, 45vw"
+        />
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/15" />
 
-  const posClass = [
-    isBottom ? "bottom-0" : "top-0",
-    isRight ? "right-0" : "left-0",
-  ].join(" ");
-
-  const flipX = isRight ? "scale-x-[-1]" : "";
-  const flipY = isBottom ? "scale-y-[-1]" : "";
-
-  return (
-    <div className={`absolute ${posClass} ${flipX} ${flipY} origin-[0_0] ${isRight ? "origin-top-right" : ""} ${isBottom ? (isRight ? "origin-bottom-right" : "origin-bottom-left") : ""}`}>
-      <svg width="320" height="200" viewBox="0 0 320 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Chip block */}
-        <rect x="0" y="82" width="88" height="26" rx="3" fill="#161616" stroke="#222" strokeWidth="1" />
-        {/* Chip dots */}
-        <circle cx="12" cy="95" r="2.5" fill="#2a2a2a" />
-        <circle cx="22" cy="95" r="2.5" fill="#2a2a2a" />
-        <circle cx="32" cy="95" r="2.5" fill="#2a2a2a" />
-        <circle cx="42" cy="95" r="2.5" fill="#2a2a2a" />
-        <circle cx="52" cy="95" r="2.5" fill="#2a2a2a" />
-        <circle cx="62" cy="95" r="2.5" fill="#2a2a2a" />
-        <circle cx="72" cy="95" r="2.5" fill="#2a2a2a" />
-
-        {/* Main horizontal trace from chip */}
-        <line x1="88" y1="95" x2="168" y2="95" stroke="#1e1e1e" strokeWidth="1" />
-        {/* Turn upward */}
-        <line x1="168" y1="95" x2="168" y2="44" stroke="#1e1e1e" strokeWidth="1" />
-        {/* Horizontal trace right */}
-        <line x1="168" y1="44" x2="280" y2="44" stroke="#1e1e1e" strokeWidth="1" />
-        {/* Terminal dot */}
-        <circle cx="280" cy="44" r="3.5" fill="#222" stroke="#2a2a2a" strokeWidth="1" />
-
-        {/* Second branch — shorter trace going down from the turn */}
-        <line x1="168" y1="95" x2="168" y2="130" stroke="#1e1e1e" strokeWidth="1" />
-        <line x1="168" y1="130" x2="230" y2="130" stroke="#1e1e1e" strokeWidth="1" />
-        <circle cx="230" cy="130" r="3.5" fill="#222" stroke="#2a2a2a" strokeWidth="1" />
-
-        {/* Small connector tick on chip line */}
-        <line x1="128" y1="90" x2="128" y2="82" stroke="#1e1e1e" strokeWidth="1" />
-        <rect x="118" y="72" width="20" height="10" rx="2" fill="#161616" stroke="#222" strokeWidth="1" />
-      </svg>
+        {/* Testimonial card */}
+        <div className="absolute bottom-8 left-8 right-8 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
+          <p className="text-white/90 text-sm leading-relaxed mb-5">
+            &ldquo;Since switching to Attrify, our team has cut reporting time in half and finally has clear visibility into which campaigns actually drive revenue.&rdquo;
+          </p>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-white font-semibold text-sm">Marcus Webb</p>
+              <p className="text-white/55 text-xs mt-0.5">Head of Performance Marketing</p>
+              <p className="text-white/40 text-xs">Apex Digital Agency</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="w-7 h-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M6.5 8L3.5 5l3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button className="w-7 h-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M3.5 8l3-3-3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

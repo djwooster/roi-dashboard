@@ -53,6 +53,9 @@ function AccountTab() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -90,6 +93,20 @@ function AccountTab() {
     setTimeout(() => setSaved(false), 2500);
   }
 
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await fetch("/api/account", { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json() as { error?: string };
+      setDeleteError(data.error ?? "Something went wrong.");
+      setDeleting(false);
+      return;
+    }
+    // Session is already invalidated server-side; just redirect to landing page
+    window.location.href = "/";
+  }
+
   return (
     <form onSubmit={handleSave} className="space-y-5">
       <Section title="Company" description="Update your company name and industry.">
@@ -124,6 +141,51 @@ function AccountTab() {
           {saving ? "Saving…" : "Save changes"}
         </button>
         {saved && <span className="text-xs text-emerald-600 font-medium">Saved</span>}
+      </div>
+
+      {/* Danger zone */}
+      <div className="pt-2 border-t border-[#f5f5f5]">
+        <div className="mb-3">
+          <p className="text-sm font-semibold text-[#0a0a0a]">Danger zone</p>
+          <p className="text-xs text-[#a3a3a3] mt-0.5">
+            Permanently delete your account and all associated data. This cannot be undone.
+          </p>
+        </div>
+
+        {!confirmDelete ? (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="text-xs font-medium text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg transition-colors"
+          >
+            Delete account
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="text-xs font-medium text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {deleting ? "Deleting…" : "Yes, delete my account"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setConfirmDelete(false); setDeleteError(null); }}
+              disabled={deleting}
+              className="text-xs font-medium text-[#525252] border border-[#e5e5e5] px-4 py-2 rounded-lg hover:border-[#a3a3a3] transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {deleteError && (
+          <p className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {deleteError}
+          </p>
+        )}
       </div>
     </form>
   );

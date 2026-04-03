@@ -262,7 +262,7 @@ export default function Dashboard() {
     : `${dateRangeLabels[dateRange]} · All sources`;
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex h-screen bg-white">
       <Sidebar
         currentPage={currentPage}
         onNavigate={(page) => {
@@ -273,7 +273,7 @@ export default function Dashboard() {
       />
 
       {/* Main area */}
-      <div className="ml-[220px] flex-1 flex flex-col min-h-full overflow-hidden">
+      <div className="ml-[220px] flex-1 flex flex-col min-h-screen overflow-hidden">
         {/* Live Ticker */}
         <LiveTicker />
 

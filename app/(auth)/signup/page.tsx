@@ -19,6 +19,7 @@ function SignupForm() {
   const inviteToken = searchParams.get("invite");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -39,80 +40,107 @@ function SignupForm() {
     router.push(inviteToken ? `/invite/${inviteToken}` : "/onboarding");
   }
 
+  const loginHref = inviteToken ? `/login?invite=${inviteToken}` : "/login";
+
   return (
     <div className="w-full max-w-sm">
-      {/* Logo */}
-      <div className="flex flex-col items-center mb-7">
-        <div className="w-12 h-12 bg-[#141414] border border-[#2a2a2a] rounded-xl flex items-center justify-center mb-5 shadow-lg">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-            <path d="M3 16l4.5-9 3.5 6.5 3-4 4 6.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Tab switcher */}
+      <div className="flex items-center gap-1 bg-[#f0f0f0] border border-[#e5e5e5] rounded-xl p-1 mb-8">
+        <Link
+          href={loginHref}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg text-[#737373] hover:text-[#404040] transition-colors"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <circle cx="6.5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M1.5 12c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
           </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Create account</h1>
-        <p className="mt-1.5 text-sm text-[#737373]">
-          Already have an account?{" "}
-          <Link href="/login" className="text-white font-semibold hover:text-[#a3a3a3] transition-colors">
-            Sign in
-          </Link>
-        </p>
+          Login
+        </Link>
+        <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-white text-[#0a0a0a] shadow-sm">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <circle cx="5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M0.5 12c0-2.761 2.239-5 5-5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            <path d="M10 7.5v4M8 9.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          Sign Up
+        </span>
       </div>
 
-      {/* Card */}
-      <div className="bg-[#141414] border border-[#222] rounded-2xl p-6 shadow-2xl">
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Email */}
-          <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#525252]">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-                <path d="M1 4.5l6 3.5 6-3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-            </span>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email address"
-              className="w-full pl-9 pr-4 py-2.5 text-sm bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white placeholder:text-[#525252] focus:outline-none focus:border-[#404040] transition-colors"
-            />
-          </div>
+      {/* Heading */}
+      <div className="mb-7">
+        <h1 className="text-2xl font-bold text-[#0a0a0a] tracking-tight">Create account</h1>
+        <p className="mt-1.5 text-sm text-[#737373]">Start tracking what actually moves the needle.</p>
+      </div>
 
-          {/* Password */}
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Email */}
+        <div>
+          <label className="block text-xs font-medium text-[#404040] mb-1.5">Email address</label>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email address"
+            className="w-full px-3.5 py-2.5 text-sm bg-white border border-[#e5e5e5] rounded-lg text-[#0a0a0a] placeholder:text-[#b0b0b0] focus:outline-none focus:border-[#a3a3a3] transition-colors"
+          />
+        </div>
+
+        {/* Password */}
+        <div>
+          <label className="block text-xs font-medium text-[#404040] mb-1.5">Password</label>
           <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#525252]">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="2.5" y="6" width="9" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-                <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                <circle cx="7" cy="9.5" r="1" fill="currentColor" />
-              </svg>
-            </span>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               required
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password (min. 8 characters)"
-              className="w-full pl-9 pr-4 py-2.5 text-sm bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white placeholder:text-[#525252] focus:outline-none focus:border-[#404040] transition-colors"
+              placeholder="Min. 8 characters"
+              className="w-full px-3.5 pr-10 py-2.5 text-sm bg-white border border-[#e5e5e5] rounded-lg text-[#0a0a0a] placeholder:text-[#b0b0b0] focus:outline-none focus:border-[#a3a3a3] transition-colors"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#b0b0b0] hover:text-[#404040] transition-colors"
+            >
+              {showPassword ? (
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                  <path d="M2 2l11 11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M6.3 5.3A2 2 0 019.7 8.7M4.3 3.3C5.3 2.8 6.4 2.5 7.5 2.5c3 0 5.5 2.7 5.5 5s-.9 2.9-2.3 3.9M3 6.2C2.2 7 1.5 8.1 1 9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                  <path d="M1 7.5C1 7.5 3.5 3 7.5 3s6.5 4.5 6.5 4.5S11.5 12 7.5 12 1 7.5 1 7.5z" stroke="currentColor" strokeWidth="1.2" />
+                  <circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                </svg>
+              )}
+            </button>
           </div>
+        </div>
 
-          {error && (
-            <p className="text-xs text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
+        {error && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {error}
+          </p>
+        )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-1"
-          >
-            {loading ? "Creating account…" : "Create account"}
-          </button>
-        </form>
-      </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-[#0a0a0a] hover:bg-[#262626] text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+        >
+          {loading ? "Creating account…" : "Create account"}
+        </button>
+      </form>
+
+      <p className="mt-7 text-center text-xs text-[#737373]">
+        Already have an account?{" "}
+        <Link href={loginHref} className="text-[#0a0a0a] font-medium hover:text-[#404040] transition-colors">
+          Sign in
+        </Link>
+      </p>
     </div>
   );
 }
