@@ -33,6 +33,11 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // /demo is public — no auth required
+  if (pathname.startsWith("/demo")) {
+    return supabaseResponse;
+  }
+
   // Unauthenticated user trying to access protected routes
   if (!user && (pathname.startsWith("/dashboard") || pathname.startsWith("/onboarding"))) {
     const url = request.nextUrl.clone();
