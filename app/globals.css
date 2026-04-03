@@ -9,6 +9,12 @@
   box-sizing: border-box;
 }
 
+button:not(:disabled),
+a,
+[role="tab"] {
+  cursor: pointer;
+}
+
 html,
 body {
   height: 100%;
