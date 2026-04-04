@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ChevronUp } from "lucide-react";
 
 export default function ConfirmEmailPage() {
   return (
@@ -47,35 +48,24 @@ function ConfirmEmailForm() {
   }, [cooldown]);
 
   return (
-    <div className="w-full max-w-sm">
+    <div className="w-full">
       {/* Logo */}
-      <div className="flex items-center gap-2 mb-10">
-        <div className="w-6 h-6 bg-[#0a0a0a] rounded-md flex items-center justify-center">
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-            <path d="M2 10l3-6 2 4 2-2 3 4" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+      <div className="flex justify-center mb-8">
+        <div className="w-10 h-10 bg-black/8 border border-black/12 backdrop-blur-sm flex items-center justify-center rounded-xl">
+          <ChevronUp size={20} color="#0a0a0a" strokeWidth={2.5} />
         </div>
-        <span className="text-sm font-semibold text-[#0a0a0a]">SourceIQ</span>
-      </div>
-
-      {/* Email icon */}
-      <div className="w-11 h-11 bg-[#f5f5f5] rounded-xl flex items-center justify-center mb-6">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <rect x="2" y="4" width="20" height="16" rx="2" stroke="#0a0a0a" strokeWidth="1.5" />
-          <path d="M2 8l10 6 10-6" stroke="#0a0a0a" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
       </div>
 
       {/* Heading */}
-      <div className="mb-8">
+      <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-[#0a0a0a] tracking-tight">Check your email</h1>
-        <p className="mt-2 text-sm text-[#737373] leading-relaxed">
+        <p className="mt-2 text-sm text-[#0a0a0a]/50 leading-relaxed">
           We sent a confirmation link to{" "}
           {email
             ? <span className="font-medium text-[#0a0a0a]">{email}</span>
             : "your email address"
           }.
-          {" "}Click it to activate your account and get started.
+          {" "}Click it to activate your account.
         </p>
       </div>
 
@@ -84,7 +74,7 @@ function ConfirmEmailForm() {
         <button
           onClick={handleResend}
           disabled={cooldown > 0 || resending}
-          className="w-full bg-[#0a0a0a] hover:bg-[#262626] text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-[#0a0a0a] hover:bg-[#0a0a0a]/85 text-white text-sm font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {resending
             ? "Sending…"
@@ -99,12 +89,9 @@ function ConfirmEmailForm() {
           </p>
         )}
 
-        <p className="text-xs text-center text-[#737373]">
+        <p className="text-xs text-center text-[#0a0a0a]/40">
           Wrong email?{" "}
-          <Link
-            href="/signup"
-            className="text-[#0a0a0a] font-medium hover:text-[#404040] transition-colors"
-          >
+          <Link href="/signup" className="text-[#0a0a0a]/60 font-medium hover:text-[#0a0a0a] transition-colors">
             Go back
           </Link>
         </p>
