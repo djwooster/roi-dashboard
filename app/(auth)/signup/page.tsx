@@ -37,7 +37,7 @@ function SignupForm() {
       return;
     }
 
-    router.push(inviteToken ? `/invite/${inviteToken}` : "/onboarding");
+    window.location.href = inviteToken ? `/invite/${inviteToken}` : "/onboarding";
   }
 
   const loginHref = inviteToken ? `/login?invite=${inviteToken}` : "/login";
