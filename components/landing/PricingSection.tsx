@@ -49,6 +49,17 @@ const proTier = [
   "Priority support",
 ];
 
+const enterpriseTier = [
+  "Everything in Pro",
+  "Unlimited team seats",
+  "24 months of data history",
+  "Custom integrations & data sources",
+  "Dedicated account manager",
+  "SSO / SAML",
+  "SLA guarantee",
+  "Onboarding & training",
+];
+
 export default function PricingSection() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
@@ -74,10 +85,10 @@ export default function PricingSection() {
           variants={stagger}
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
-          className="grid grid-cols-1 md:grid-cols-2 gap-px bg-black/8 max-w-4xl"
+          className="grid grid-cols-1 md:grid-cols-3 gap-px bg-black/8 w-full"
         >
           {/* Free */}
-          <motion.div variants={fadeUp} className="flex flex-col p-10 bg-white">
+          <motion.div variants={fadeUp} className="flex flex-col p-10 bg-white ring-1 ring-black/8">
             <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#0a0a0a]/35 mb-6">Free</p>
             <div className="mb-8">
               <span
@@ -117,7 +128,7 @@ export default function PricingSection() {
                 className="font-extrabold text-white leading-none"
                 style={{ fontSize: "clamp(40px, 4vw, 56px)", letterSpacing: "-0.04em" }}
               >
-                $69
+                $99
               </span>
               <span className="text-sm text-white/40 ml-2">/ month</span>
             </div>
@@ -134,6 +145,34 @@ export default function PricingSection() {
               className="inline-flex items-center justify-center font-bold text-sm h-12 px-7 bg-white text-[#0a0a0a] hover:bg-white/90 transition-colors duration-200 rounded-lg"
             >
               Start Pro
+            </a>
+          </motion.div>
+
+          {/* Enterprise */}
+          <motion.div variants={fadeUp} className="flex flex-col p-10 bg-white ring-1 ring-black/8">
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#0a0a0a]/35 mb-6">Enterprise</p>
+            <div className="mb-8">
+              <span
+                className="font-extrabold text-[#0a0a0a] leading-none"
+                style={{ fontSize: "clamp(40px, 4vw, 56px)", letterSpacing: "-0.04em" }}
+              >
+                $199
+              </span>
+              <span className="text-sm text-[#0a0a0a]/40 ml-2">/ month</span>
+            </div>
+            <ul className="flex flex-col gap-3 mb-10 flex-1">
+              {enterpriseTier.map((item) => (
+                <li key={item} className="flex items-start gap-2.5 text-sm text-[#0a0a0a]/60 leading-relaxed">
+                  <Check />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <a
+              href="/signup"
+              className="inline-flex items-center justify-center font-bold text-sm h-12 px-7 border border-black/15 text-[#0a0a0a] hover:bg-[#0a0a0a]/5 transition-colors duration-200 rounded-lg"
+            >
+              Contact us
             </a>
           </motion.div>
         </motion.div>

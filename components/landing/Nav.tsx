@@ -6,9 +6,7 @@ import Link from "next/link";
 import { ChevronUp } from "lucide-react";
 import ArrowButton from "@/components/landing/ArrowButton";
 
-const navLinks = [
-  { label: "Pricing", href: "#pricing" },
-];
+const navLinks: { label: string; href: string }[] = [];
 
 function HamburgerIcon({ open }: { open: boolean }) {
   return (
@@ -99,7 +97,7 @@ export default function Nav() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -109,7 +107,13 @@ export default function Nav() {
                 {link.label}
               </Link>
             ))}
-            <ArrowButton href="/signup" className="h-9 px-5 text-sm" arrowLeft="20px">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-[#0a0a0a]/55 hover:text-[#0a0a0a] transition-colors duration-200"
+            >
+              Log in
+            </Link>
+            <ArrowButton href="/signup" className="h-8 px-4 text-xs" arrowLeft="16px">
               Get started free
             </ArrowButton>
           </nav>
@@ -166,10 +170,17 @@ export default function Nav() {
                   </motion.div>
                 ))}
 
-                <motion.div variants={itemVariants} className="pt-8">
+                <motion.div variants={itemVariants} className="pt-8 flex flex-col gap-3">
                   <ArrowButton href="/signup" variant="light" className="w-full h-14 text-base" arrowLeft="20px">
                     Get started free
                   </ArrowButton>
+                  <Link
+                    href="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="text-center text-sm font-medium text-white/50 hover:text-white transition-colors duration-200 py-2"
+                  >
+                    Log in
+                  </Link>
                 </motion.div>
               </motion.nav>
             </div>

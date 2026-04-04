@@ -37,13 +37,13 @@ export default function Hero() {
         <motion.div {...fadeUp(0.72)} className="flex items-center gap-4 mt-8 flex-wrap">
           <a
             href="/signup"
-            className="group relative inline-flex items-center justify-center gap-2 font-bold overflow-hidden transition-colors duration-200 bg-[#0a0a0a] text-white hover:bg-[#0a0a0a]/85 h-12 px-7 text-sm rounded-lg"
+            className="group relative inline-flex items-center justify-center gap-2 font-bold overflow-hidden transition-colors duration-200 bg-[#0a0a0a] text-white hover:bg-[#0a0a0a]/85 h-9 px-5 text-xs rounded-lg"
           >
             Get started free
           </a>
           <a
             href="/demo"
-            className="inline-flex items-center justify-center gap-2 font-semibold text-sm h-12 px-7 border border-black/15 text-[#0a0a0a] hover:bg-[#0a0a0a]/5 transition-colors duration-200 rounded-lg"
+            className="inline-flex items-center justify-center gap-2 font-semibold text-xs h-9 px-5 border border-black/15 text-[#0a0a0a] hover:bg-[#0a0a0a]/5 transition-colors duration-200 rounded-lg"
           >
             View live demo
           </a>
