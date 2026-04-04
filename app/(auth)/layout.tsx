@@ -8,7 +8,7 @@ export default function AuthLayout({
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <Image
-        src="/new-bg.png"
+        src="/new-bg.webp"
         alt=""
         fill
         className="object-cover"
