@@ -31,7 +31,7 @@ export default function Hero() {
           className="text-[#0a0a0a]/50 leading-relaxed max-w-2xl"
           style={{ fontSize: "clamp(18px, 1.2vw, 24px)" }}
         >
-          Attrify unifies your leads, spend, and revenue from every source — so you and your clients always know what&apos;s working and what&apos;s wasting budget.
+          SourceIQ unifies your leads, spend, and revenue from every source — so you and your clients always know what&apos;s working and what&apos;s wasting budget.
         </motion.p>
 
         <motion.div {...fadeUp(0.72)} className="flex items-center gap-4 mt-8 flex-wrap">
@@ -55,7 +55,7 @@ export default function Hero() {
         <div className="max-w-[90rem] mx-auto px-6">
           <div className="relative w-[90vw] border-t border-l border-r border-black/15 overflow-hidden max-h-[220px] sm:max-h-none">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/roi-dashboard.png" alt="Attrify Dashboard" className="block h-auto max-w-none w-[220%] sm:w-full" />
+            <img src="/roi-dashboard.png" alt="SourceIQ Dashboard" className="block h-auto max-w-none w-[220%] sm:w-full" />
             <div
               className="absolute inset-x-0 bottom-0 pointer-events-none"
               style={{ height: "40%", background: "linear-gradient(to bottom, transparent, white)" }}

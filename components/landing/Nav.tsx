@@ -95,7 +95,7 @@ export default function Nav() {
             <div className="w-7 h-7 bg-[#0a0a0a] flex items-center justify-center rounded-lg" aria-hidden="true">
               <ChevronUp size={20} color="white" strokeWidth={2.5} />
             </div>
-            <span className="text-xl font-bold text-[#0a0a0a] tracking-tight">Attrify</span>
+            <span className="text-xl font-bold text-[#0a0a0a] tracking-tight">SourceIQ</span>
           </Link>
 
           {/* Desktop nav */}
@@ -175,7 +175,7 @@ export default function Nav() {
             </div>
 
             <div className="px-8 pb-10">
-              <p className="text-white/20 text-sm font-medium">Attrify</p>
+              <p className="text-white/20 text-sm font-medium">SourceIQ</p>
             </div>
           </motion.div>
         )}

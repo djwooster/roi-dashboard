@@ -44,7 +44,7 @@ const proTier = [
   "12 months of data history",
   "Per-client custom views",
   "Real-time alerts ticker",
-  "White-label & remove Attrify branding",
+  "White-label & remove SourceIQ branding",
   "CSV + PDF exports",
   "Priority support",
 ];

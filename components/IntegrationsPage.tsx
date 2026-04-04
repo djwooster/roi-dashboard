@@ -84,7 +84,8 @@ export default function IntegrationsPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user?.user_metadata?.org_id) { setLoadingConnected(false); return; }
 
       const { data } = await supabase

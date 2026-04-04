@@ -28,7 +28,7 @@ export default function AuthLayout({
         {/* Testimonial card */}
         <div className="absolute bottom-8 left-8 right-8 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
           <p className="text-white/90 text-sm leading-relaxed mb-5">
-            &ldquo;Since switching to Attrify, our team has cut reporting time in half and finally has clear visibility into which campaigns actually drive revenue.&rdquo;
+            &ldquo;Since switching to SourceIQ, our team has cut reporting time in half and finally has clear visibility into which campaigns actually drive revenue.&rdquo;
           </p>
           <div className="flex items-end justify-between">
             <div>

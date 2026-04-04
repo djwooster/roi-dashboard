@@ -324,7 +324,7 @@ export default function Dashboard() {
 
                 <div className="pt-2 pb-4 border-t border-[#f5f5f5]">
                   <p className="text-[10px] text-[#d4d4d4] text-center">
-                    ROI Dashboard · Mock data · Last updated Mar 28, 2026
+                    SourceIQ · Mock data · Last updated Mar 28, 2026
                   </p>
                 </div>
               </motion.div>

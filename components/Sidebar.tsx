@@ -102,11 +102,11 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
 
   useEffect(() => {
     createClient()
-      .auth.getUser()
-      .then(({ data: { user } }) => {
-        if (user) {
-          setUserEmail(user.email ?? null);
-          setCompanyName(user.user_metadata?.company_name ?? null);
+      .auth.getSession()
+      .then(({ data: { session } }) => {
+        if (session?.user) {
+          setUserEmail(session.user.email ?? null);
+          setCompanyName(session.user.user_metadata?.company_name ?? null);
         }
       });
   }, []);
@@ -134,7 +134,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
             </svg>
           </div>
           <span className="text-sm font-semibold text-[#0a0a0a] tracking-tight">
-            ROI Dash
+            SourceIQ
           </span>
         </div>
       </div>

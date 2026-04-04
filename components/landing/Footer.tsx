@@ -4,9 +4,9 @@ export default function Footer() {
   return (
     <footer className="bg-white border-t border-black/8 py-8 px-6">
       <div className="max-w-[90rem] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-        <span className="text-sm font-bold text-[#0a0a0a]/70 tracking-tight">Attrify</span>
+        <span className="text-sm font-bold text-[#0a0a0a]/70 tracking-tight">SourceIQ</span>
         <p className="text-xs text-[#0a0a0a]/30 text-center">
-          &copy; {year} Attrify. All rights reserved.
+          &copy; {year} SourceIQ. All rights reserved.
         </p>
         <div className="flex items-center gap-5">
           <a href="mailto:hello@attrify.app" className="text-xs text-[#0a0a0a]/30 hover:text-[#0a0a0a]/60 transition-colors duration-200">

@@ -82,7 +82,7 @@ export default function FeaturesSection() {
           className="flex flex-col gap-5 md:sticky md:top-24 md:self-start"
         >
           <p className="text-sm font-semibold uppercase tracking-[0.15em] text-[#0a0a0a]/35">
-            Why Attrify
+            Why SourceIQ
           </p>
           <h2 className="section-headline text-[#0a0a0a]">
             Built for agencies.<br />Loved by clients.

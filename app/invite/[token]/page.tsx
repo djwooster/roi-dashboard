@@ -129,7 +129,7 @@ export default function InvitePage() {
       <div className="text-center mb-6">
         <p className="text-base font-semibold text-[#0a0a0a]">You&apos;ve been invited</p>
         <p className="text-xs text-[#737373] mt-1">
-          Accept to join your team&apos;s ROI Dashboard.
+          Accept to join your team&apos;s SourceIQ workspace.
         </p>
       </div>
 
@@ -161,7 +161,7 @@ function InviteShell({ children }: { children: React.ReactNode }) {
                 <path d="M2 10l3-6 2 4 2-2 3 4" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <span className="text-sm font-semibold text-[#0a0a0a]">ROI Dashboard</span>
+            <span className="text-sm font-semibold text-[#0a0a0a]">SourceIQ</span>
           </div>
         </div>
         <div className="bg-white border border-[#e5e5e5] rounded-xl p-6 shadow-sm">

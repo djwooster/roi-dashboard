@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
@@ -14,7 +14,6 @@ export default function SignupPage() {
 }
 
 function SignupForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get("invite");
   const [email, setEmail] = useState("");
@@ -29,7 +28,15 @@ function SignupForm() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({ email, password });
+    const callbackUrl = inviteToken
+      ? `${window.location.origin}/auth/callback?next=/invite/${inviteToken}`
+      : `${window.location.origin}/auth/callback`;
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: callbackUrl },
+    });
 
     if (error) {
       setError(error.message);
@@ -37,7 +44,7 @@ function SignupForm() {
       return;
     }
 
-    window.location.href = inviteToken ? `/invite/${inviteToken}` : "/onboarding";
+    window.location.href = `/confirm-email?email=${encodeURIComponent(email)}`;
   }
 
   const loginHref = inviteToken ? `/login?invite=${inviteToken}` : "/login";

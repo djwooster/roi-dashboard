@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ROI Dashboard — Marketing Attribution",
-  description: "Marketing attribution and ROI tracking dashboard",
+  title: "SourceIQ — Marketing Attribution",
+  description: "Marketing attribution and ROI tracking dashboard for home service businesses.",
 };
 
 export default function RootLayout({
