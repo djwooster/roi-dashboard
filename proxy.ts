@@ -33,6 +33,15 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Supabase sometimes ignores emailRedirectTo and lands the user on the Site
+  // URL with the auth code as a query param. Catch it here and forward to the
+  // proper callback route so the session gets established correctly.
+  if (pathname === "/" && request.nextUrl.searchParams.get("code")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
+
   // Public routes — no auth required
   if (pathname.startsWith("/demo") || pathname === "/") {
     // Authenticated users visiting root get sent straight to their dashboard
