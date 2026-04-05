@@ -10,10 +10,9 @@ import TrendChart from "@/components/TrendChart";
 import PipelineFunnel from "@/components/PipelineFunnel";
 import CampaignTables from "@/components/CampaignTables";
 import LiveTicker from "@/components/LiveTicker";
-import SourceDrawer from "@/components/SourceDrawer";
 import IntegrationsPage from "@/components/IntegrationsPage";
 import SettingsPage from "@/components/SettingsPage";
-import { leadSources, dateRangeLabels, DateRange } from "@/lib/mock-data";
+import { dateRangeLabels, DateRange } from "@/lib/mock-data";
 
 const DATE_RANGES: DateRange[] = ["30d", "90d", "6mo", "ytd"];
 
@@ -228,28 +227,11 @@ function DateRangePicker({
 // ── Main dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState<string>("overview");
-  const [selectedSource, setSelectedSource] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>("30d");
-  const [comparisonMode, setComparisonMode] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => setToast(msg), []);
   const clearToast = useCallback(() => setToast(null), []);
-
-  function handleSelectSource(id: string | null) {
-    setSelectedSource(id);
-    setDrawerOpen(id !== null);
-  }
-
-  function handleCloseDrawer() {
-    setDrawerOpen(false);
-    setSelectedSource(null);
-  }
-
-  const selectedSourceObj = selectedSource
-    ? leadSources.find((s) => s.id === selectedSource) ?? null
-    : null;
 
   const isOverview = currentPage === "overview";
   const isIntegrations = currentPage === "integrations";
@@ -263,14 +245,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-screen bg-white">
-      <Sidebar
-        currentPage={currentPage}
-        onNavigate={(page) => {
-          setCurrentPage(page);
-          // close drawer when navigating away
-          if (drawerOpen) handleCloseDrawer();
-        }}
-      />
+      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
 
       {/* Main area */}
       <div className="ml-[220px] flex-1 flex flex-col min-h-screen overflow-hidden">
@@ -280,9 +255,7 @@ export default function Dashboard() {
         {/* Sticky header */}
         <div className="sticky top-0 z-10 bg-white border-b border-[#e5e5e5] px-6 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-sm font-semibold text-[#0a0a0a]">
-              {headerTitle}
-            </h1>
+            <h1 className="text-sm font-semibold text-[#0a0a0a]">{headerTitle}</h1>
             <p className="text-[11px] text-[#a3a3a3]">{headerSub}</p>
           </div>
           {isOverview && (
@@ -305,28 +278,14 @@ export default function Dashboard() {
                 transition={{ duration: 0.2 }}
                 className="px-6 py-5 space-y-5 max-w-[1400px]"
               >
-                <KPIBar dateRange={dateRange} />
-
-                <SourceTable
-                  selectedSource={selectedSource}
-                  onSelectSource={handleSelectSource}
-                  comparisonMode={comparisonMode}
-                  onToggleComparison={() => setComparisonMode((v) => !v)}
-                />
-
+                <KPIBar />
+                <SourceTable />
                 <div className="grid grid-cols-2 gap-3">
-                  <RevenueChart dateRange={dateRange} />
-                  <TrendChart selectedSource={selectedSource} />
+                  <RevenueChart />
+                  <TrendChart />
                 </div>
-
                 <PipelineFunnel />
                 <CampaignTables />
-
-                <div className="pt-2 pb-4 border-t border-[#f5f5f5]">
-                  <p className="text-[10px] text-[#d4d4d4] text-center">
-                    SourceIQ · Mock data · Last updated Mar 28, 2026
-                  </p>
-                </div>
               </motion.div>
             ) : isIntegrations ? (
               <motion.div
@@ -352,28 +311,6 @@ export default function Dashboard() {
           </AnimatePresence>
         </main>
       </div>
-
-      {/* Backdrop when drawer is open */}
-      <AnimatePresence>
-        {drawerOpen && (
-          <motion.div
-            key="backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={handleCloseDrawer}
-            className="fixed top-0 left-[220px] right-[400px] bottom-0 bg-black/5 backdrop-blur-[2px] z-20"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Drill-down drawer */}
-      <AnimatePresence>
-        {drawerOpen && selectedSourceObj && (
-          <SourceDrawer source={selectedSourceObj} onClose={handleCloseDrawer} />
-        )}
-      </AnimatePresence>
 
       {/* Toast notifications */}
       <AnimatePresence>

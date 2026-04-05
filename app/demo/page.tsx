@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Dashboard from "@/app/dashboard/page";
+import { DemoContext } from "@/lib/demo-context";
 
 export default function DemoPage() {
   return (
@@ -32,7 +33,9 @@ export default function DemoPage() {
 
       {/* Push dashboard content below the banner */}
       <div className="pt-[37px] h-full">
-        <Dashboard />
+        <DemoContext.Provider value={true}>
+          <Dashboard />
+        </DemoContext.Provider>
       </div>
     </div>
   );
