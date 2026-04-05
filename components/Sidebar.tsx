@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type NavItem = {
@@ -197,6 +198,14 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
             </button>
           </div>
         )}
+
+        <Link
+          href="/privacy/data-deletion"
+          target="_blank"
+          className="block text-center text-[10px] text-[#d4d4d4] hover:text-[#a3a3a3] transition-colors mb-2"
+        >
+          Privacy Policy
+        </Link>
 
         <button
           onClick={() => setMenuOpen((v) => !v)}
