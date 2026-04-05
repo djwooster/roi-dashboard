@@ -13,11 +13,9 @@ import LiveTicker from "@/components/LiveTicker";
 import IntegrationsPage from "@/components/IntegrationsPage";
 import SettingsPage from "@/components/SettingsPage";
 import SourceDrawer from "@/components/SourceDrawer";
-import { leadSources, dateRangeLabels, DateRange } from "@/lib/mock-data";
+import { leadSources } from "@/lib/mock-data";
 import { useDemoMode } from "@/lib/demo-context";
 import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
-
-const DATE_RANGES: DateRange[] = ["30d", "90d", "6mo", "ytd"];
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 function Toast({ message, onDone }: { message: string; onDone: () => void }) {
@@ -145,92 +143,9 @@ function ExportMenu({ onToast }: { onToast: (msg: string) => void }) {
   );
 }
 
-// ── Date range picker ─────────────────────────────────────────────────────────
-function DateRangePicker({
-  value,
-  onChange,
-}: {
-  value: DateRange;
-  onChange: (v: DateRange) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-[11px] text-[#525252] border border-[#e5e5e5] rounded-md px-2.5 py-1.5 hover:border-[#a3a3a3] transition-colors"
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <rect x="1" y="2" width="10" height="9" rx="1" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-        </svg>
-        {dateRangeLabels[value]}
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 10 10"
-          fill="none"
-          className={`transition-transform ml-0.5 ${open ? "rotate-180" : ""}`}
-        >
-          <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-1.5 w-44 border border-[#e5e5e5] bg-white rounded-lg overflow-hidden z-50"
-          >
-            {DATE_RANGES.map((r, i) => (
-              <button
-                key={r}
-                onClick={() => {
-                  onChange(r);
-                  setOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 text-xs transition-colors text-left ${
-                  i < DATE_RANGES.length - 1 ? "border-b border-[#f5f5f5]" : ""
-                } ${
-                  value === r
-                    ? "bg-[#f5f5f5] text-[#0a0a0a] font-medium"
-                    : "text-[#525252] hover:bg-[#fafafa]"
-                }`}
-              >
-                {dateRangeLabels[r]}
-                {value === r && (
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                    <path d="M2 5l2.5 2.5L8 3" stroke="#0a0a0a" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 // ── Main dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState<string>("overview");
-  const [dateRange, setDateRange] = useState<DateRange>("30d");
   const [toast, setToast] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -269,7 +184,7 @@ export default function Dashboard() {
     ? "Manage your account and team"
     : isIntegrations
     ? "Connect your tools"
-    : `${dateRangeLabels[dateRange]} · All sources`;
+    : "All sources";
 
   return (
     <div className="flex h-screen bg-white">
@@ -288,7 +203,6 @@ export default function Dashboard() {
           </div>
           {isOverview && (
             <div className="flex items-center gap-2">
-              <DateRangePicker value={dateRange} onChange={setDateRange} />
               <ExportMenu onToast={showToast} />
             </div>
           )}
