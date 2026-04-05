@@ -14,6 +14,13 @@ OAuth flow, exchange the code for a long-lived token, and persist it scoped to t
 
 ### What still needs to be done
 
+#### 0. Enter these URLs in Meta for Developers dashboard
+- **Settings → Advanced → Data Deletion Requests**
+  - Callback URL: `https://sourceiq.app/webhooks/meta/data-deletion`
+  - Status URL: `https://sourceiq.app/webhooks/meta/data-deletion?id={confirmation_code}` (Meta fills in the code)
+- **Settings → Advanced → Deauthorize Callback URL** (optional but recommended)
+  - `https://sourceiq.app/webhooks/meta/data-deletion` (same endpoint handles both)
+
 #### 1. Register the Facebook App & set env vars
 - Create an app at developers.facebook.com → add **Marketing API** product
 - Set OAuth redirect URI: `https://sourceiq.app/api/integrations/facebook/callback`

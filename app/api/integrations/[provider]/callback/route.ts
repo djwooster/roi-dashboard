@@ -75,6 +75,16 @@ export async function GET(
 
   const supabase = await createClient();
 
+  // Fetch the provider user ID so we can handle data deletion requests later
+  let providerUserId: string | null = null;
+  if (config.userIdUrl) {
+    const userRes = await fetch(`${config.userIdUrl}?access_token=${tokens.access_token}`);
+    if (userRes.ok) {
+      const userData = await userRes.json() as { id?: string };
+      providerUserId = userData.id ?? null;
+    }
+  }
+
   // Upsert integration row (one per org per provider)
   await supabase.from("integrations").upsert(
     {
@@ -84,6 +94,7 @@ export async function GET(
       refresh_token: tokens.refresh_token ?? null,
       token_expires_at: tokenExpiresAt,
       status: "active",
+      ...(providerUserId ? { provider_user_id: providerUserId } : {}),
     },
     { onConflict: "org_id,provider" }
   );

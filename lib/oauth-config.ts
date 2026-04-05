@@ -6,6 +6,8 @@ type ProviderConfig = {
   scopes: string[];
   clientIdEnv: string;
   clientSecretEnv: string;
+  /** URL to fetch the authenticated user's ID after token exchange (provider-specific) */
+  userIdUrl?: string;
 };
 
 export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
@@ -19,9 +21,10 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
   facebook: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
-    scopes: ["ads_read", "ads_management"],
+    scopes: ["ads_read", "ads_management", "read_insights", "leads_retrieval"],
     clientIdEnv: "FACEBOOK_APP_ID",
     clientSecretEnv: "FACEBOOK_APP_SECRET",
+    userIdUrl: "https://graph.facebook.com/v19.0/me",
   },
   ghl: {
     authUrl: "https://marketplace.gohighlevel.com/oauth/chooselocation",
