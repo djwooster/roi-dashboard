@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useDemoMode } from "@/lib/demo-context";
+import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
 import {
   getTotals,
   kpiDeltas,
@@ -77,7 +78,7 @@ function DemoKPICard({ label, rawValue, format, goal, goalLabel, lowerBetter, de
 
 // ── Empty card ────────────────────────────────────────────────────────────────
 
-function EmptyKPICard({ label, index }: { label: string; index: number }) {
+function EmptyKPICard({ label, index, value }: { label: string; index: number; value?: string | null }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -86,8 +87,10 @@ function EmptyKPICard({ label, index }: { label: string; index: number }) {
       className="flex-1 min-w-0 border border-[#e5e5e5] rounded-lg p-4 bg-white"
     >
       <p className="text-[11px] font-medium text-[#a3a3a3] uppercase tracking-wider mb-2">{label}</p>
-      <p className="text-2xl font-semibold text-[#d4d4d4] tracking-tight leading-none">—</p>
-      <p className="text-[11px] text-[#e5e5e5] mt-1">No data yet</p>
+      <p className={`text-2xl font-semibold tracking-tight leading-none ${value ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
+        {value ?? "—"}
+      </p>
+      <p className="text-[11px] text-[#e5e5e5] mt-1">{value ? "Meta Ads · all time" : "No data yet"}</p>
     </motion.div>
   );
 }
@@ -96,13 +99,26 @@ function EmptyKPICard({ label, index }: { label: string; index: number }) {
 
 const LABELS = ["Total Leads", "Total Spend", "Avg CPL", "Total Revenue", "Blended ROAS"];
 
-export default function KPIBar() {
+function fmtMoney(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toFixed(2)}`;
+}
+
+export default function KPIBar({ metaData }: { metaData?: MetaInsightsResponse | null }) {
   const demo = useDemoMode();
 
   if (!demo) {
+    const spend = metaData?.totals.spend ?? null;
+    const leads = metaData?.totals.leads ?? null;
     return (
       <div className="flex gap-3">
-        {LABELS.map((label, i) => <EmptyKPICard key={label} label={label} index={i} />)}
+        {LABELS.map((label, i) => {
+          let value: string | null = null;
+          if (label === "Total Spend" && spend !== null) value = fmtMoney(spend);
+          if (label === "Total Leads" && leads !== null && leads > 0) value = leads.toLocaleString();
+          return <EmptyKPICard key={label} label={label} index={i} value={value} />;
+        })}
       </div>
     );
   }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useDemoMode } from "@/lib/demo-context";
 import { leadSources, getCPL, getCostPerAppt, getROAS, getROI } from "@/lib/mock-data";
+import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ function ROASBadge({ value }: { value: number }) {
   return <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${color}`}>{value.toFixed(1)}x</span>;
 }
 
-function DemoSourceTable() {
+function DemoSourceTable({ onSelectSource, selectedSource }: { onSelectSource?: (id: string | null) => void; selectedSource?: string | null }) {
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -100,8 +101,13 @@ function DemoSourceTable() {
               const costPerAppt = getCostPerAppt(source);
               const roas = getROAS(source);
               const roi = getROI(source);
+              const isSelected = selectedSource === source.id;
               return (
-                <tr key={source.id} className="border-b border-[#f5f5f5] last:border-0 hover:bg-[#fafafa] transition-colors">
+                <tr
+                  key={source.id}
+                  onClick={() => onSelectSource?.(isSelected ? null : source.id)}
+                  className={`border-b border-[#f5f5f5] last:border-0 transition-colors ${onSelectSource ? "cursor-pointer" : ""} ${isSelected ? "bg-[#f5f5f5]" : "hover:bg-[#fafafa]"}`}
+                >
                   <td className="px-4 py-2.5 font-medium text-[#0a0a0a] whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: source.color }} />
@@ -130,7 +136,15 @@ function DemoSourceTable() {
 
 const COLS = ["Leads", "Spend", "CPL", "Appts", "Cost/Appt", "Revenue", "ROAS", "ROI %"];
 
-function EmptySourceTable() {
+type MetaSummary = { spend: number; impressions: number; clicks: number; leads: number } | null;
+
+function fmt(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toFixed(2)}`;
+}
+
+function EmptySourceTable({ meta, onSelectSource, selectedSource }: { meta?: MetaSummary; onSelectSource?: (id: string | null) => void; selectedSource?: string | null }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -152,19 +166,42 @@ function EmptySourceTable() {
             </tr>
           </thead>
           <tbody>
-            {SOURCES.map((source) => (
-              <tr key={source.id} className="border-b border-[#f5f5f5] last:border-0">
-                <td className="px-4 py-2.5 font-medium text-[#0a0a0a] whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: source.color }} />
-                    {source.name}
-                  </div>
-                </td>
-                {COLS.map((col) => (
-                  <td key={col} className="px-4 py-2.5 text-right font-mono text-[#d4d4d4]">—</td>
-                ))}
-              </tr>
-            ))}
+            {SOURCES.map((source) => {
+              const isSelected = selectedSource === source.id;
+              const isFacebook = source.id === "facebook";
+              const cells: (string | null)[] = isFacebook && meta
+                ? [
+                    meta.leads > 0 ? meta.leads.toLocaleString() : null,
+                    fmt(meta.spend),
+                    meta.leads > 0 ? fmt(meta.spend / meta.leads) : null,
+                    null, // Appts
+                    null, // Cost/Appt
+                    null, // Revenue
+                    null, // ROAS
+                    null, // ROI %
+                  ]
+                : COLS.map(() => null);
+
+              return (
+                <tr
+                  key={source.id}
+                  onClick={() => onSelectSource?.(isSelected ? null : source.id)}
+                  className={`border-b border-[#f5f5f5] last:border-0 transition-colors ${onSelectSource ? "cursor-pointer" : ""} ${isSelected ? "bg-[#f5f5f5]" : "hover:bg-[#fafafa]"}`}
+                >
+                  <td className="px-4 py-2.5 font-medium text-[#0a0a0a] whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: source.color }} />
+                      {source.name}
+                    </div>
+                  </td>
+                  {cells.map((val, i) => (
+                    <td key={COLS[i]} className={`px-4 py-2.5 text-right font-mono ${val ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
+                      {val ?? "—"}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -174,7 +211,25 @@ function EmptySourceTable() {
 
 // ── Export ────────────────────────────────────────────────────────────────────
 
-export default function SourceTable() {
+type TableProps = {
+  metaData?: MetaInsightsResponse | null;
+  onSelectSource?: (id: string | null) => void;
+  selectedSource?: string | null;
+};
+
+export default function SourceTable({ metaData, onSelectSource, selectedSource }: TableProps) {
   const demo = useDemoMode();
-  return demo ? <DemoSourceTable /> : <EmptySourceTable />;
+  if (demo) return <DemoSourceTable onSelectSource={onSelectSource} selectedSource={selectedSource} />;
+
+  // Aggregate Meta totals across all accounts for the Facebook Ads row
+  const meta = metaData
+    ? {
+        spend: metaData.totals.spend,
+        impressions: metaData.totals.impressions,
+        clicks: metaData.totals.clicks,
+        leads: metaData.totals.leads,
+      }
+    : null;
+
+  return <EmptySourceTable meta={meta} onSelectSource={onSelectSource} selectedSource={selectedSource} />;
 }

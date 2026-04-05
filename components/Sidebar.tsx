@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { roasAlerts } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
 
 type NavItem = {
@@ -23,35 +22,6 @@ const navItems: NavItem[] = [
         <rect x="8.5" y="1" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
         <rect x="1" y="8.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
         <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
-      </svg>
-    ),
-  },
-  {
-    label: "Lead Sources",
-    page: "overview",
-    badge: "roas-alert",
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-        <circle cx="7.5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M2.5 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    label: "Pipeline",
-    page: "overview",
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-        <path d="M1.5 7.5h12M1.5 3.5h9M1.5 11.5h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    label: "Campaigns",
-    page: "overview",
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-        <path d="M7.5 1.5L9.5 5.5L14 6.2L10.75 9.3L11.5 13.8L7.5 11.7L3.5 13.8L4.25 9.3L1 6.2L5.5 5.5L7.5 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -84,7 +54,6 @@ type Props = {
 };
 
 export default function Sidebar({ currentPage, onNavigate }: Props) {
-  const hasROASAlert = roasAlerts.length > 0;
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -145,7 +114,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
           Analytics
         </p>
         <ul className="space-y-0.5">
-          {navItems.slice(0, 4).map((item) => {
+          {navItems.slice(0, 1).map((item) => {
             const active = isActive(item);
             return (
               <li key={item.label}>
@@ -178,7 +147,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
           Setup
         </p>
         <ul className="space-y-0.5">
-          {navItems.slice(4).map((item) => {
+          {navItems.slice(1).map((item) => {
             const active = isActive(item);
             return (
               <li key={item.label}>

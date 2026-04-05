@@ -12,7 +12,10 @@ import CampaignTables from "@/components/CampaignTables";
 import LiveTicker from "@/components/LiveTicker";
 import IntegrationsPage from "@/components/IntegrationsPage";
 import SettingsPage from "@/components/SettingsPage";
-import { dateRangeLabels, DateRange } from "@/lib/mock-data";
+import SourceDrawer from "@/components/SourceDrawer";
+import { leadSources, dateRangeLabels, DateRange } from "@/lib/mock-data";
+import { useDemoMode } from "@/lib/demo-context";
+import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
 
 const DATE_RANGES: DateRange[] = ["30d", "90d", "6mo", "ytd"];
 
@@ -229,7 +232,32 @@ export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState<string>("overview");
   const [dateRange, setDateRange] = useState<DateRange>("30d");
   const [toast, setToast] = useState<string | null>(null);
+  const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
+  function handleSelectSource(id: string | null) {
+    setSelectedSource(id);
+    setDrawerOpen(id !== null);
+  }
+
+  function handleCloseDrawer() {
+    setDrawerOpen(false);
+    setSelectedSource(null);
+  }
+
+  const selectedSourceObj = selectedSource
+    ? leadSources.find((s) => s.id === selectedSource) ?? null
+    : null;
+  const [metaData, setMetaData] = useState<MetaInsightsResponse | null>(null);
+
+  useEffect(() => {
+    fetch("/api/meta/insights")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setMetaData(data); })
+      .catch(() => {});
+  }, []);
+
+  const demo = useDemoMode();
   const showToast = useCallback((msg: string) => setToast(msg), []);
   const clearToast = useCallback(() => setToast(null), []);
 
@@ -278,8 +306,8 @@ export default function Dashboard() {
                 transition={{ duration: 0.2 }}
                 className="px-6 py-5 space-y-5 max-w-[1400px]"
               >
-                <KPIBar />
-                <SourceTable />
+                <KPIBar metaData={metaData} />
+                <SourceTable metaData={metaData} onSelectSource={demo ? handleSelectSource : undefined} selectedSource={demo ? selectedSource : null} />
                 <div className="grid grid-cols-2 gap-3">
                   <RevenueChart />
                   <TrendChart />
@@ -311,6 +339,28 @@ export default function Dashboard() {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Backdrop when drawer is open */}
+      <AnimatePresence>
+        {drawerOpen && (
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={handleCloseDrawer}
+            className="fixed top-0 left-[220px] right-[400px] bottom-0 bg-black/5 backdrop-blur-[2px] z-20"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Drill-down drawer (demo mode only — real data drill-down coming soon) */}
+      <AnimatePresence>
+        {drawerOpen && selectedSourceObj && (
+          <SourceDrawer source={selectedSourceObj} onClose={handleCloseDrawer} />
+        )}
+      </AnimatePresence>
 
       {/* Toast notifications */}
       <AnimatePresence>
