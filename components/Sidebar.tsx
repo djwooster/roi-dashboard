@@ -133,10 +133,6 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
                     {item.icon}
                   </span>
                   <span className="flex-1">{item.label}</span>
-                  {/* ROAS alert badge */}
-                  {item.badge === "roas-alert" && hasROASAlert && (
-                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                  )}
                 </button>
               </li>
             );
