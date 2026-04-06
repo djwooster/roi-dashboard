@@ -68,71 +68,82 @@ export async function GET() {
     return NextResponse.json({ error: "No GHL location ID stored" }, { status: 400 });
   }
 
-  const [contactsRes, oppsRes, wonRes, pipelinesRes] = await Promise.all([
-    ghlFetch(`/contacts/?locationId=${locationId}&limit=1`, token),
-    ghlFetch(`/opportunities/search?location_id=${locationId}&limit=1`, token),
-    ghlFetch(`/opportunities/search?location_id=${locationId}&status=won&limit=100`, token),
-    ghlFetch(`/pipelines/?locationId=${locationId}`, token),
-  ]);
+  try {
+    const [contactsRes, oppsRes, wonRes] = await Promise.all([
+      ghlFetch(`/contacts/?locationId=${locationId}&limit=1`, token),
+      ghlFetch(`/opportunities/search?location_id=${locationId}&limit=1`, token),
+      ghlFetch(`/opportunities/search?location_id=${locationId}&status=won&limit=100`, token),
+    ]);
 
-  const [contactsData, oppsData, wonData, pipelinesData] = await Promise.all([
-    contactsRes.json() as Promise<GHLListResponse<GHLContact>>,
-    oppsRes.json() as Promise<GHLListResponse<GHLOpportunity>>,
-    wonRes.json() as Promise<GHLListResponse<GHLOpportunity>>,
-    pipelinesRes.json() as Promise<GHLPipelinesResponse>,
-  ]);
+    const [contactsData, oppsData, wonData] = await Promise.all([
+      contactsRes.json() as Promise<GHLListResponse<GHLContact>>,
+      oppsRes.json() as Promise<GHLListResponse<GHLOpportunity>>,
+      wonRes.json() as Promise<GHLListResponse<GHLOpportunity>>,
+    ]);
 
-  const contacts = contactsData.meta?.total ?? 0;
-  const opportunities = oppsData.meta?.total ?? 0;
-  const wonOpps = wonData.opportunities ?? [];
-  const wonCount = wonData.meta?.total ?? wonOpps.length;
-  const closedRevenue = wonOpps.reduce((sum, o) => sum + (o.monetaryValue ?? 0), 0);
+    const contacts = contactsData.meta?.total ?? 0;
+    const opportunities = oppsData.meta?.total ?? 0;
+    const wonOpps = wonData.opportunities ?? [];
+    const wonCount = wonData.meta?.total ?? wonOpps.length;
+    const closedRevenue = wonOpps.reduce((sum, o) => sum + (o.monetaryValue ?? 0), 0);
 
-  // Fetch all pipelines — each may represent a different offer the agency is running
-  const allPipelines = pipelinesData.pipelines ?? [];
+    // Fetch pipelines separately — if this fails, basic KPI data still returns
+    let pipelines: GHLPipelineData[] = [];
+    try {
+      const pipelinesRes = await ghlFetch(`/pipelines/?locationId=${locationId}`, token);
+      if (pipelinesRes.ok) {
+        const pipelinesData = await pipelinesRes.json() as GHLPipelinesResponse;
+        const allPipelines = pipelinesData.pipelines ?? [];
 
-  const pipelines: GHLPipelineData[] = await Promise.all(
-    allPipelines.map(async (pl) => {
-      const sortedStages = [...pl.stages].sort((a, b) => a.position - b.position);
+        pipelines = await Promise.all(
+          allPipelines.map(async (pl) => {
+            const sortedStages = [...pl.stages].sort((a, b) => a.position - b.position);
+            const [stageResults, lostRes] = await Promise.all([
+              Promise.all(
+                sortedStages.map((stage) =>
+                  ghlFetch(
+                    `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&pipeline_stage_id=${stage.id}&status=open&limit=1`,
+                    token
+                  ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve({}))
+                )
+              ),
+              ghlFetch(
+                `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&status=lost&limit=1`,
+                token
+              ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve({})),
+            ]);
 
-      const [stageResults, lostRes] = await Promise.all([
-        Promise.all(
-          sortedStages.map((stage) =>
-            ghlFetch(
-              `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&pipeline_stage_id=${stage.id}&status=open&limit=1`,
-              token
-            ).then((r) => r.json() as Promise<GHLListResponse<GHLOpportunity>>)
-          )
-        ),
-        ghlFetch(
-          `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&status=lost&limit=1`,
-          token
-        ).then((r) => r.json() as Promise<GHLListResponse<GHLOpportunity>>),
-      ]);
+            const lostCount = (lostRes as GHLListResponse<GHLOpportunity>).meta?.total ?? 0;
+            const stages: GHLPipelineStage[] = sortedStages.map((stage, i) => ({
+              name: stage.name,
+              count: (stageResults[i] as GHLListResponse<GHLOpportunity>).meta?.total ?? 0,
+            }));
 
-      const lostCount = lostRes.meta?.total ?? 0;
-      const stages: GHLPipelineStage[] = sortedStages.map((stage, i) => ({
-        name: stage.name,
-        count: stageResults[i].meta?.total ?? 0,
-      }));
+            return { pipelineName: pl.name, stages, lostCount };
+          })
+        );
+      }
+    } catch {
+      // Pipeline fetch failed — return empty array, basic KPIs still work
+    }
 
-      return { pipelineName: pl.name, stages, lostCount };
-    })
-  );
+    const totalLostCount = pipelines.reduce((sum, p) => sum + p.lostCount, 0);
+    const closeRate =
+      wonCount + totalLostCount > 0
+        ? Math.round((wonCount / (wonCount + totalLostCount)) * 100)
+        : null;
+    const avgDealValue = wonCount > 0 ? Math.round(closedRevenue / wonCount) : null;
 
-  const totalLostCount = pipelines.reduce((sum, p) => sum + p.lostCount, 0);
-  const closeRate =
-    wonCount + totalLostCount > 0
-      ? Math.round((wonCount / (wonCount + totalLostCount)) * 100)
-      : null;
-  const avgDealValue = wonCount > 0 ? Math.round(closedRevenue / wonCount) : null;
-
-  return NextResponse.json({
-    contacts,
-    opportunities,
-    closedRevenue,
-    closeRate,
-    avgDealValue,
-    pipelines,
-  } satisfies GHLSyncResponse);
+    return NextResponse.json({
+      contacts,
+      opportunities,
+      closedRevenue,
+      closeRate,
+      avgDealValue,
+      pipelines,
+    } satisfies GHLSyncResponse);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "GHL sync failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
