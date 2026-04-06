@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 
-type Tab = "account" | "team";
+type Tab = "account" | "team" | "billing";
 
 type Member = { id: string; user_id: string; email: string; role: string; created_at: string };
 type PendingInvite = { id: string; email: string; role: string; created_at: string; expires_at: string };
@@ -23,7 +23,7 @@ export default function SettingsPage() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
         {/* Tabs */}
         <div className="flex gap-1 border-b border-[#e5e5e5] mb-6">
-          {(["account", "team"] as Tab[]).map((t) => (
+          {(["account", "team", "billing"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -33,13 +33,14 @@ export default function SettingsPage() {
                   : "border-transparent text-[#a3a3a3] hover:text-[#525252]"
               }`}
             >
-              {t === "account" ? "Account" : "Team"}
+              {t === "account" ? "Account" : t === "team" ? "Team" : "Billing"}
             </button>
           ))}
         </div>
 
         {tab === "account" && <AccountTab />}
         {tab === "team" && <TeamTab />}
+        {tab === "billing" && <BillingTab />}
       </motion.div>
     </div>
   );
@@ -346,6 +347,109 @@ function TeamTab() {
               </button>
             </div>
           </div>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+// ── Billing Tab ───────────────────────────────────────────────────────────────
+
+const STATUS_LABEL: Record<string, { label: string; color: string }> = {
+  active:   { label: "Active",   color: "text-green-700 bg-green-50 border-green-200" },
+  trialing: { label: "Trial",    color: "text-blue-700 bg-blue-50 border-blue-200" },
+  past_due: { label: "Past due", color: "text-amber-700 bg-amber-50 border-amber-200" },
+  canceled: { label: "Canceled", color: "text-red-600 bg-red-50 border-red-200" },
+  inactive: { label: "Inactive", color: "text-[#a3a3a3] bg-[#f5f5f5] border-[#e5e5e5]" },
+};
+
+function BillingTab() {
+  const [status, setStatus] = useState<string>("inactive");
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const orgId = session?.user?.user_metadata?.org_id;
+      if (!orgId) { setLoading(false); return; }
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("stripe_subscription_status")
+        .eq("id", orgId)
+        .single();
+      if (org) setStatus(org.stripe_subscription_status ?? "inactive");
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function handleCheckout() {
+    setError(null);
+    setActionLoading(true);
+    const res = await fetch("/api/stripe/checkout", { method: "POST" });
+    const data = await res.json();
+    if (data.url) { window.location.href = data.url; return; }
+    setError(data.error ?? "Something went wrong.");
+    setActionLoading(false);
+  }
+
+  async function handlePortal() {
+    setError(null);
+    setActionLoading(true);
+    const res = await fetch("/api/stripe/portal", { method: "POST" });
+    const data = await res.json();
+    if (data.url) { window.location.href = data.url; return; }
+    setError(data.error ?? "Something went wrong.");
+    setActionLoading(false);
+  }
+
+  const isActive = status === "active" || status === "trialing";
+  const badge = STATUS_LABEL[status] ?? STATUS_LABEL.inactive;
+
+  return (
+    <div className="space-y-5">
+      <Section title="Subscription" description="Manage your SourceIQ plan and billing details.">
+        {loading ? (
+          <div className="animate-pulse h-10 bg-[#f5f5f5] rounded-lg" />
+        ) : (
+          <div className="flex items-center justify-between p-4 border border-[#e5e5e5] rounded-lg">
+            <div>
+              <p className="text-sm font-semibold text-[#0a0a0a]">SourceIQ Pro</p>
+              <p className="text-xs text-[#a3a3a3] mt-0.5">$297 / month</p>
+            </div>
+            <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${badge.color}`}>
+              {badge.label}
+            </span>
+          </div>
+        )}
+
+        {error && (
+          <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            {error}
+          </p>
+        )}
+
+        {!loading && (
+          isActive ? (
+            <button
+              onClick={handlePortal}
+              disabled={actionLoading}
+              className="bg-[#0a0a0a] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#262626] transition-colors disabled:opacity-50"
+            >
+              {actionLoading ? "Redirecting…" : "Manage billing"}
+            </button>
+          ) : (
+            <button
+              onClick={handleCheckout}
+              disabled={actionLoading}
+              className="bg-[#0a0a0a] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#262626] transition-colors disabled:opacity-50"
+            >
+              {actionLoading ? "Redirecting…" : "Subscribe"}
+            </button>
+          )
         )}
       </Section>
     </div>
