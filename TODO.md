@@ -11,10 +11,55 @@
 - `SourceTable` + `KPIBar` — GHL row wired with live data
 - Disconnect button — red button on integrations page, sets status to `inactive`
 
-### What still needs to be done
+### What still needs to be done (setup)
 - [ ] Fully publish GHL app in marketplace.gohighlevel.com (add redirect URIs, scopes, hit Save/Publish)
 - [ ] Add `GHL_CLIENT_ID` + `GHL_CLIENT_SECRET` to Vercel env vars (do locally too)
 - [ ] Token refresh — GHL tokens expire; build `lib/ghl/getValidToken.ts` (same pattern as Meta token refresh below)
+
+### GHL Insights — making the data valuable
+Right now we show 3 numbers the user can already see in their GHL dashboard. The goal is to surface insights GHL doesn't show natively.
+
+#### 1. Pipeline stage funnel (highest priority)
+`PipelineFunnel.tsx` is already built with mock data + empty state — it just needs real data.
+GHL API calls needed:
+- `GET /pipelines/?locationId={id}` — fetch real pipeline stage names and IDs
+- `GET /opportunities/search?location_id={id}&pipeline_stage_id={stageId}` — count + value per stage
+- `GET /opportunities/search?location_id={id}&status=lost` — lost opps for Closed Lost bar
+
+Insights unlocked (things GHL doesn't surface automatically):
+- Conversion rate between each stage (e.g. "42% of appointments become proposals")
+- Where in the funnel leads are dropping off
+- Pipeline value per stage (not just count)
+
+Wire real stage data into `PipelineFunnel.tsx` and pass from `/api/ghl/sync`.
+
+#### 2. Close rate + average deal value
+Currently we fetch won opps but don't compute these. Add to `/api/ghl/sync`:
+- `closeRate`: won / (won + lost) as a percentage
+- `avgDealValue`: total won revenue / count of won opps
+
+Show in KPIBar or a dedicated GHL insights card. GHL shows this buried in reports — we surface it prominently.
+
+#### 3. Lead source breakdown
+GHL contacts have a `source` field (Facebook, Google, referral, manual, etc.).
+- `GET /contacts/?locationId={id}&limit=100` — fetch contacts with source field
+- Group by source, count per source, show which sources generate the most contacts
+- Eventually: cross-reference with Meta spend to show cost-per-GHL-contact by source
+
+This becomes the most powerful cross-platform insight: "Your Facebook Ads generated 47 GHL contacts this month. 12 became opportunities. 4 closed for $18,000."
+
+#### 4. New contacts this period (vs all time)
+We currently show total contacts — a vanity number. More useful: new contacts in the last 30 days.
+- `GET /contacts/?locationId={id}&startDate={30daysAgo}` — filter by date range
+- Show "X new contacts (30d)" in SourceTable instead of all-time total
+
+#### 5. Cross-platform attribution (longer term — requires both Meta + GHL connected)
+The real differentiator. When a user has both Meta and GHL connected:
+- GHL contacts with `source = "facebook"` or UTM params matching Meta campaigns
+- Calculate: Meta spend → GHL contacts → GHL opportunities → closed revenue
+- Show full funnel: "Facebook Ads: $2,400 spend → 38 GHL leads → 9 opps → 3 closed → $12,000 revenue"
+- GHL doesn't show this. Meta doesn't show this. Only SourceIQ does.
+- Implementation: match on UTM source/campaign fields stored on GHL contacts
 
 ---
 
