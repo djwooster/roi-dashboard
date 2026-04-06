@@ -66,3 +66,94 @@ in `app/api/meta/insights/route.ts`.
 `/api/meta/insights` already fetches the token from `integrations` by `org_id` — this is correct.
 Once the OAuth flow is live, remove the founder-specific fallback constants and rely solely
 on the discovered account IDs stored in step 5.
+
+---
+
+## Scale Roadmap
+
+Priority order reflects what actually blocks revenue or customers.
+
+### Before first paying customer
+
+#### Stripe Billing — BLOCKER
+No subscription system exists. Without it you cannot charge anyone.
+- Add Stripe, create products/prices for each plan tier
+- Webhook route: `app/api/webhooks/stripe/route.ts` — update `organizations.stripe_subscription_status`
+- Enforce in `proxy.ts`: redirect to `/billing` if subscription is inactive
+- Stub in AGENTS.md once pattern is established:
+  ```
+  organizations.stripe_subscription_status — checked in proxy.ts before serving /dashboard
+  ```
+
+#### Forgot Password Page — BLOCKER
+`/forgot-password` link exists in the login form but the page doesn't exist.
+- Create `app/(auth)/forgot-password/page.tsx`
+- Call `supabase.auth.resetPasswordForEmail(email, { redirectTo: ... })`
+
+#### Meta App Review — BLOCKER for real customers
+Facebook app is in dev mode — only test users can connect Meta Ads.
+- Submit for App Review at developers.facebook.com (requires screencast demo)
+- Request scopes: `ads_read`, `ads_management`, `read_insights`, `leads_retrieval`
+- Also enter webhook URLs per TODO items above (data deletion, deauthorize callback)
+- Plan 1–5 business days — start this in parallel with other dev work
+
+#### Meta Token Refresh — required before go-live
+Short-lived tokens (~1 hr) get stored today. First customers will silently lose their Meta integration within hours.
+- Build `lib/meta/getValidToken.ts`: check `token_expires_at`, re-exchange if within 7 days of expiry
+- Call from `/api/meta/insights` before using the token
+- Details in Meta OAuth section above (step 3 & 4)
+
+---
+
+### Before 50 customers
+
+#### Background Data Sync — performance & rate limits
+Every dashboard load currently hits Meta's API directly. At 50 clients this will hit rate limits and be slow.
+- Create a `metrics` table in Supabase to cache synced data per org per provider
+- Set up a Vercel Cron job (or Supabase Edge Function) to sync all connected orgs hourly
+- Dashboard reads from `metrics` table, not live API calls
+- This also enables date range filtering (see below)
+
+#### Error Monitoring (Sentry)
+No visibility into production failures. ~5 minute setup.
+- `npm install @sentry/nextjs` and run `npx @sentry/wizard`
+- Set `SENTRY_DSN` in Vercel env vars
+
+#### Fix Onboarding Race Condition
+In `app/onboarding/page.tsx:68-89`, if the org insert succeeds but the member insert fails,
+the user has an org with no membership and is permanently locked out.
+- Wrap both inserts in a Supabase RPC function (database transaction) so they're atomic
+- Replace the two separate `.insert()` calls with a single `supabase.rpc("create_org_with_owner", {...})`
+
+---
+
+### Before 100+ customers
+
+#### Date Range Filtering
+The picker was removed because it wasn't wired to live data. Once background sync stores
+data in a `metrics` table with timestamps, this becomes straightforward.
+- Re-add `DateRangePicker` to `dashboard/page.tsx`
+- Pass selected range to KPIBar, SourceTable — they query `metrics` filtered by date
+
+#### Plan Tier Enforcement
+If multiple pricing tiers exist (e.g., 3 integrations vs. unlimited), enforce at the DB or middleware level.
+- Add `plan` column to `organizations`
+- Check plan limits in `proxy.ts` or API routes before allowing additional integrations
+
+#### Team Invites UI
+`invites` table exists in the DB schema but there's no UI to send or accept invitations.
+Agency/consultant clients will ask for this early — it's a key use case per onboarding role options.
+- Build invite flow in SettingsPage
+- Accept route: `app/api/invites/[token]/route.ts`
+
+---
+
+### GHL Integration (next up)
+
+`lib/oauth-config.ts` already has GHL configured.
+
+- [ ] Register app at marketplace.gohighlevel.com, get CLIENT_ID + CLIENT_SECRET
+- [ ] Add `GHL_CLIENT_ID` / `GHL_CLIENT_SECRET` to Vercel env vars
+- [ ] Build `/api/ghl/sync/route.ts` — fetch contacts/pipeline data, return in consistent shape
+- [ ] Wire GHL row in `EmptySourceTable` to show real data (same pattern as Meta row)
+- [ ] Test connect → callback → insights flow end to end
