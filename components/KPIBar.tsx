@@ -77,6 +77,27 @@ function DemoKPICard({ label, rawValue, format, goal, goalLabel, lowerBetter, de
   );
 }
 
+// ── Skeleton card ─────────────────────────────────────────────────────────────
+
+function SkeletonKPICard({ index }: { index: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.05, ease: "easeOut" }}
+      className="flex-1 min-w-0 border border-[#e5e5e5] rounded-lg p-4 bg-white"
+    >
+      <div className="animate-pulse space-y-2.5">
+        <div className="h-2 w-20 bg-[#ebebeb] rounded" />
+        <div className="h-7 w-24 bg-[#ebebeb] rounded" />
+        <div className="h-2 w-14 bg-[#ebebeb] rounded" />
+        <div className="h-1 w-full bg-[#ebebeb] rounded-full mt-3" />
+        <div className="h-2 w-16 bg-[#ebebeb] rounded" />
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Empty card ────────────────────────────────────────────────────────────────
 
 function EmptyKPICard({ label, index, value }: { label: string; index: number; value?: string | null }) {
@@ -106,10 +127,17 @@ function fmtMoney(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-export default function KPIBar({ metaData, ghlData }: { metaData?: MetaInsightsResponse | null; ghlData?: GHLSyncResponse | null }) {
+export default function KPIBar({ metaData, ghlData, loading }: { metaData?: MetaInsightsResponse | null; ghlData?: GHLSyncResponse | null; loading?: boolean }) {
   const demo = useDemoMode();
 
   if (!demo) {
+    if (loading) {
+      return (
+        <div className="flex gap-3">
+          {LABELS.map((label, i) => <SkeletonKPICard key={label} index={i} />)}
+        </div>
+      );
+    }
     const metaSpend = metaData?.totals.spend ?? 0;
     const metaLeads = metaData?.totals.leads ?? 0;
     const totalLeads = metaLeads + (ghlData?.contacts ?? 0);

@@ -6,17 +6,30 @@ const GHL_VERSION = "2021-07-28";
 
 type GHLContact = { id: string };
 type GHLOpportunity = { monetaryValue?: number };
+type GHLStage = { id: string; name: string; position: number };
+type GHLPipelineItem = { id: string; name: string; stages: GHLStage[] };
 
 type GHLListResponse<T> = {
   meta?: { total?: number };
   contacts?: T[];
   opportunities?: T[];
 };
+type GHLPipelinesResponse = { pipelines?: GHLPipelineItem[] };
+
+export type GHLPipelineStage = { name: string; count: number };
+export type GHLPipelineData = {
+  pipelineName: string;
+  stages: GHLPipelineStage[];
+  lostCount: number;
+};
 
 export type GHLSyncResponse = {
   contacts: number;
   opportunities: number;
   closedRevenue: number;
+  closeRate: number | null;
+  avgDealValue: number | null;
+  pipelines: GHLPipelineData[];
 };
 
 async function ghlFetch(path: string, token: string) {
@@ -55,24 +68,71 @@ export async function GET() {
     return NextResponse.json({ error: "No GHL location ID stored" }, { status: 400 });
   }
 
-  const [contactsRes, oppsRes, wonRes] = await Promise.all([
+  const [contactsRes, oppsRes, wonRes, pipelinesRes] = await Promise.all([
     ghlFetch(`/contacts/?locationId=${locationId}&limit=1`, token),
     ghlFetch(`/opportunities/search?location_id=${locationId}&limit=1`, token),
     ghlFetch(`/opportunities/search?location_id=${locationId}&status=won&limit=100`, token),
+    ghlFetch(`/pipelines/?locationId=${locationId}`, token),
   ]);
 
-  const [contactsData, oppsData, wonData] = await Promise.all([
+  const [contactsData, oppsData, wonData, pipelinesData] = await Promise.all([
     contactsRes.json() as Promise<GHLListResponse<GHLContact>>,
     oppsRes.json() as Promise<GHLListResponse<GHLOpportunity>>,
     wonRes.json() as Promise<GHLListResponse<GHLOpportunity>>,
+    pipelinesRes.json() as Promise<GHLPipelinesResponse>,
   ]);
 
   const contacts = contactsData.meta?.total ?? 0;
   const opportunities = oppsData.meta?.total ?? 0;
-  const closedRevenue = (wonData.opportunities ?? []).reduce(
-    (sum, o) => sum + (o.monetaryValue ?? 0),
-    0
+  const wonOpps = wonData.opportunities ?? [];
+  const wonCount = wonData.meta?.total ?? wonOpps.length;
+  const closedRevenue = wonOpps.reduce((sum, o) => sum + (o.monetaryValue ?? 0), 0);
+
+  // Fetch all pipelines — each may represent a different offer the agency is running
+  const allPipelines = pipelinesData.pipelines ?? [];
+
+  const pipelines: GHLPipelineData[] = await Promise.all(
+    allPipelines.map(async (pl) => {
+      const sortedStages = [...pl.stages].sort((a, b) => a.position - b.position);
+
+      const [stageResults, lostRes] = await Promise.all([
+        Promise.all(
+          sortedStages.map((stage) =>
+            ghlFetch(
+              `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&pipeline_stage_id=${stage.id}&status=open&limit=1`,
+              token
+            ).then((r) => r.json() as Promise<GHLListResponse<GHLOpportunity>>)
+          )
+        ),
+        ghlFetch(
+          `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&status=lost&limit=1`,
+          token
+        ).then((r) => r.json() as Promise<GHLListResponse<GHLOpportunity>>),
+      ]);
+
+      const lostCount = lostRes.meta?.total ?? 0;
+      const stages: GHLPipelineStage[] = sortedStages.map((stage, i) => ({
+        name: stage.name,
+        count: stageResults[i].meta?.total ?? 0,
+      }));
+
+      return { pipelineName: pl.name, stages, lostCount };
+    })
   );
 
-  return NextResponse.json({ contacts, opportunities, closedRevenue } satisfies GHLSyncResponse);
+  const totalLostCount = pipelines.reduce((sum, p) => sum + p.lostCount, 0);
+  const closeRate =
+    wonCount + totalLostCount > 0
+      ? Math.round((wonCount / (wonCount + totalLostCount)) * 100)
+      : null;
+  const avgDealValue = wonCount > 0 ? Math.round(closedRevenue / wonCount) : null;
+
+  return NextResponse.json({
+    contacts,
+    opportunities,
+    closedRevenue,
+    closeRate,
+    avgDealValue,
+    pipelines,
+  } satisfies GHLSyncResponse);
 }

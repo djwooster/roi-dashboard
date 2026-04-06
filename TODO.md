@@ -26,12 +26,20 @@ GHL API calls needed:
 - `GET /opportunities/search?location_id={id}&pipeline_stage_id={stageId}` — count + value per stage
 - `GET /opportunities/search?location_id={id}&status=lost` — lost opps for Closed Lost bar
 
+Real data is now wired: `/api/ghl/sync` returns `pipeline` (first pipeline only — see note below).
+`PipelineFunnel.tsx` renders real stage names, counts, and conversion rates from live GHL data.
+
+**Multi-pipeline per client (needs update):**
+Agencies often run 1–3 separate pipelines per client, each representing a different offer (e.g. for a med spa: "1 Year Unlimited Laser Hair Removal" vs "3 Free Underarm Sessions"). Currently only the first pipeline is returned. 
+- Update `/api/ghl/sync` to return `pipelines: GHLPipelineData[]` (all pipelines, not just `[0]`)
+- Update `PipelineFunnel` to show a pipeline selector (tabs/dropdown) when multiple pipelines exist
+- If only one pipeline, no selector shown — single funnel displayed as now
+- In the agency multi-location view: show per-client, per-offer conversion rates so agencies can see which offer is performing best across all clients
+
 Insights unlocked (things GHL doesn't surface automatically):
 - Conversion rate between each stage (e.g. "42% of appointments become proposals")
 - Where in the funnel leads are dropping off
-- Pipeline value per stage (not just count)
-
-Wire real stage data into `PipelineFunnel.tsx` and pass from `/api/ghl/sync`.
+- Which offer converts best for a given client
 
 #### 2. Close rate + average deal value
 Currently we fetch won opps but don't compute these. Add to `/api/ghl/sync`:
@@ -53,7 +61,30 @@ We currently show total contacts — a vanity number. More useful: new contacts 
 - `GET /contacts/?locationId={id}&startDate={30daysAgo}` — filter by date range
 - Show "X new contacts (30d)" in SourceTable instead of all-time total
 
-#### 5. Cross-platform attribution (longer term — requires both Meta + GHL connected)
+#### 5. Agency multi-location view (high priority — primary audience)
+Agencies managing 40+ GHL clients need a single dashboard to see all clients at a glance, with drill-down per client.
+- Change GHL OAuth to request agency-level access (currently connects at location/sub-account level)
+- After connect, call `GET /locations/?companyId={id}` to list all sub-accounts; store in `integrations.metadata` or a `ghl_locations` table
+- UI: client overview table — one row per sub-account, showing pipeline value, close rate, new contacts
+- Client drill-down: clicking a client loads the full funnel + KPI view scoped to that `locationId`
+- This enables the **export feature**: per-client PDF/CSV report (agencies use this to report to their clients)
+- Also enables "which funnel is performing best?" — compare close rate, appointment conversion, and pipeline velocity across all client locations
+- Key agency insight: appointment conversion rate per client (leads → "Appointment Set" stage) — tells the agency where to keep spending and which clients need attention
+- Spending guidance: cross-reference with lead source so agencies see "Facebook → 38 leads → 19 appts → 6 closed" per client
+
+Implementation notes:
+- All GHL API calls are already `locationId`-parameterized — multi-location is additive, not a rewrite
+- Start with single-location funnel (current plan), then layer agency view on top
+- Key metric for multi-location table: appointment conversion % (count at "Appointment Set"-equivalent stage / total leads) — derive from pipeline stages, no separate Calendar API needed if agencies use pipeline stages for appointments
+- Export format: likely a printable/shareable summary card per client (name, key KPIs, funnel snapshot)
+
+#### 6. Export feature (tied to agency multi-location view)
+Agencies need to quickly generate client-facing reports. Not a spreadsheet dump — a clean summary they can send.
+- Per-client report: logo, date range, KPI highlights, pipeline funnel snapshot
+- Format options: PDF (print/email) or shareable link (public URL with read-only view)
+- Trigger: "Export Report" button on each client's drill-down view
+
+#### 7. Cross-platform attribution (longer term — requires both Meta + GHL connected)
 The real differentiator. When a user has both Meta and GHL connected:
 - GHL contacts with `source = "facebook"` or UTM params matching Meta campaigns
 - Calculate: Meta spend → GHL contacts → GHL opportunities → closed revenue

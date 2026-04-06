@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   LineChart,
   Line,
@@ -67,15 +67,13 @@ export default function SourceDrawer({ source, onClose }: Props) {
   const roasDelta = prevROAS > 0 ? ((currentROAS - prevROAS) / prevROAS) * 100 : 0;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        key="drawer"
-        initial={{ x: 400 }}
-        animate={{ x: 0 }}
-        exit={{ x: 400 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className="fixed right-0 top-0 bottom-0 w-[400px] bg-white border-l border-[#e5e5e5] z-30 flex flex-col overflow-y-auto"
-      >
+    <motion.div
+      initial={{ x: 400 }}
+      animate={{ x: 0 }}
+      exit={{ x: 400 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="fixed right-0 top-0 bottom-0 w-[400px] bg-white border-l border-[#e5e5e5] z-30 flex flex-col overflow-y-auto"
+    >
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#e5e5e5] flex items-center justify-between sticky top-0 bg-white z-10">
           <div className="flex items-center gap-2.5">
@@ -266,7 +264,6 @@ export default function SourceDrawer({ source, onClose }: Props) {
             </div>
           </div>
         </div>
-      </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 }

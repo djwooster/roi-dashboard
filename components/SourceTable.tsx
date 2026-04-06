@@ -133,6 +133,38 @@ function DemoSourceTable({ onSelectSource, selectedSource }: { onSelectSource?: 
   );
 }
 
+// ── Skeleton table ────────────────────────────────────────────────────────────
+
+function SkeletonSourceTable() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.3, ease: "easeOut" }}
+      className="border border-[#e5e5e5] rounded-lg overflow-hidden"
+    >
+      <div className="px-4 py-3 border-b border-[#e5e5e5]">
+        <h2 className="text-sm font-semibold text-[#0a0a0a]">Lead Source Performance</h2>
+      </div>
+      <div className="animate-pulse">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-[#f5f5f5] last:border-0">
+            <div className="flex items-center gap-2 w-32 shrink-0">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#ebebeb] shrink-0" />
+              <div className="h-2.5 bg-[#ebebeb] rounded flex-1" />
+            </div>
+            {Array.from({ length: 8 }).map((_, j) => (
+              <div key={j} className="flex-1 flex justify-end">
+                <div className="h-2.5 bg-[#ebebeb] rounded" style={{ width: `${40 + Math.sin(i + j) * 20}%` }} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Empty table ───────────────────────────────────────────────────────────────
 
 const COLS = ["Leads", "Spend", "CPL", "Appts", "Cost/Appt", "Revenue", "ROAS", "ROI %"];
@@ -230,13 +262,15 @@ function EmptySourceTable({ meta, ghl, onSelectSource, selectedSource }: { meta?
 type TableProps = {
   metaData?: MetaInsightsResponse | null;
   ghlData?: GHLSyncResponse | null;
+  loading?: boolean;
   onSelectSource?: (id: string | null) => void;
   selectedSource?: string | null;
 };
 
-export default function SourceTable({ metaData, ghlData, onSelectSource, selectedSource }: TableProps) {
+export default function SourceTable({ metaData, ghlData, loading, onSelectSource, selectedSource }: TableProps) {
   const demo = useDemoMode();
   if (demo) return <DemoSourceTable onSelectSource={onSelectSource} selectedSource={selectedSource} />;
+  if (loading) return <SkeletonSourceTable />;
 
   const meta = metaData
     ? {

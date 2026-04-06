@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { useDemoMode } from "@/lib/demo-context";
 
 type NavItem = {
   label: string;
@@ -54,6 +55,7 @@ type Props = {
 };
 
 export default function Sidebar({ currentPage, onNavigate }: Props) {
+  const demo = useDemoMode();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -199,7 +201,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
         )}
 
         <button
-          onClick={() => setMenuOpen((v) => !v)}
+          onClick={() => !demo && setMenuOpen((v) => !v)}
           className="w-full flex items-center gap-2 rounded-md px-1 py-1 hover:bg-[#f5f5f5] transition-colors cursor-pointer"
         >
           <div className="w-6 h-6 rounded-full bg-[#e5e5e5] flex items-center justify-center text-[10px] font-semibold text-[#525252] shrink-0">

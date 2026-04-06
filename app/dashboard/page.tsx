@@ -158,7 +158,7 @@ export default function Dashboard() {
 
   function handleCloseDrawer() {
     setDrawerOpen(false);
-    setSelectedSource(null);
+    setTimeout(() => setSelectedSource(null), 300);
   }
 
   const selectedSourceObj = selectedSource
@@ -166,17 +166,20 @@ export default function Dashboard() {
     : null;
   const [metaData, setMetaData] = useState<MetaInsightsResponse | null>(null);
   const [ghlData, setGhlData] = useState<GHLSyncResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/meta/insights")
+    const metaP = fetch("/api/meta/insights")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data) setMetaData(data); })
       .catch(() => {});
 
-    fetch("/api/ghl/sync")
+    const ghlP = fetch("/api/ghl/sync")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data) setGhlData(data); })
       .catch(() => {});
+
+    Promise.allSettled([metaP, ghlP]).then(() => setLoading(false));
   }, []);
 
   const demo = useDemoMode();
@@ -227,13 +230,13 @@ export default function Dashboard() {
                 transition={{ duration: 0.2 }}
                 className="px-6 py-5 space-y-5 max-w-[1400px]"
               >
-                <KPIBar metaData={metaData} ghlData={ghlData} />
-                <SourceTable metaData={metaData} ghlData={ghlData} onSelectSource={demo ? handleSelectSource : undefined} selectedSource={demo ? selectedSource : null} />
+                <KPIBar metaData={metaData} ghlData={ghlData} loading={loading} />
+                <SourceTable metaData={metaData} ghlData={ghlData} loading={loading} onSelectSource={demo ? handleSelectSource : undefined} selectedSource={demo ? selectedSource : null} />
                 <div className="grid grid-cols-2 gap-3">
                   <RevenueChart />
                   <TrendChart />
                 </div>
-                <PipelineFunnel />
+                <PipelineFunnel pipelines={ghlData?.pipelines ?? []} loading={loading} />
                 <CampaignTables />
               </motion.div>
             ) : isIntegrations ? (
@@ -279,7 +282,7 @@ export default function Dashboard() {
       {/* Drill-down drawer (demo mode only — real data drill-down coming soon) */}
       <AnimatePresence>
         {drawerOpen && selectedSourceObj && (
-          <SourceDrawer source={selectedSourceObj} onClose={handleCloseDrawer} />
+          <SourceDrawer key="source-drawer" source={selectedSourceObj} onClose={handleCloseDrawer} />
         )}
       </AnimatePresence>
 
