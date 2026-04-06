@@ -1,46 +1,47 @@
 # SourceIQ — Implementation TODOs
 
+## GHL Integration
+
+### What's already built
+- `/api/integrations/ghl/connect` — builds OAuth URL, sets CSRF nonce cookie
+- `/api/integrations/crm/callback` — GHL alias route (GHL blocks "ghl" in redirect URIs)
+- `lib/oauth-callback.ts` — shared OAuth callback logic used by all providers
+- `lib/oauth-config.ts` — GHL entry with `tokenResponseIdField: "locationId"` (extracted from token response, no extra API call needed)
+- `/api/ghl/sync` — fetches contact count, open opportunities, closed revenue
+- `SourceTable` + `KPIBar` — GHL row wired with live data
+- Disconnect button — red button on integrations page, sets status to `inactive`
+
+### What still needs to be done
+- [ ] Fully publish GHL app in marketplace.gohighlevel.com (add redirect URIs, scopes, hit Save/Publish)
+- [ ] Add `GHL_CLIENT_ID` + `GHL_CLIENT_SECRET` to Vercel env vars (do locally too)
+- [ ] Token refresh — GHL tokens expire; build `lib/ghl/getValidToken.ts` (same pattern as Meta token refresh below)
+
+---
+
 ## Meta Business Login OAuth Flow
 
-**Goal:** When a client clicks "Connect Facebook Ads," take them through Meta's Business Login
-OAuth flow, exchange the code for a long-lived token, and persist it scoped to their org.
-
 ### What's already in place
-- `/api/integrations/facebook/connect` — builds the OAuth redirect URL, sets a CSRF nonce cookie
-- `/api/integrations/facebook/callback` — verifies nonce, exchanges code for tokens, upserts to `integrations` table
-- `integrations` table — `org_id`, `provider`, `access_token`, `refresh_token`, `token_expires_at`, `status`, RLS via `get_my_org_id()`
-- `lib/oauth-config.ts` — Facebook entry: auth URL, token URL, scopes (`ads_read`, `ads_management`)
-- `components/IntegrationsPage.tsx` — Connect button links to `/api/integrations/facebook/connect`
+- `/api/integrations/facebook/connect` + `/api/integrations/facebook/callback`
+- `integrations` table stores token, scoped to org
+- `lib/oauth-config.ts` — scopes: `ads_read`, `ads_management`, `leads_retrieval` (`read_insights` removed — deprecated)
+- App domain + redirect URI registered in Meta for Developers portal
+- `/api/meta/insights` — fetches ad account spend, leads, revenue
 
 ### What still needs to be done
 
 #### 0. Enter these URLs in Meta for Developers dashboard
 - **Settings → Advanced → Data Deletion Requests**
   - Callback URL: `https://sourceiq.app/webhooks/meta/data-deletion`
-  - Status URL: `https://sourceiq.app/webhooks/meta/data-deletion?id={confirmation_code}` (Meta fills in the code)
-- **Settings → Advanced → Deauthorize Callback URL** (optional but recommended)
-  - `https://sourceiq.app/webhooks/meta/data-deletion` (same endpoint handles both)
+  - Status URL: `https://sourceiq.app/webhooks/meta/data-deletion?id={confirmation_code}`
 
-#### 1. Register the Facebook App & set env vars
-- Create an app at developers.facebook.com → add **Marketing API** product
-- Set OAuth redirect URI: `https://sourceiq.app/api/integrations/facebook/callback`
-- Add to Vercel env vars:
-  ```
-  FACEBOOK_APP_ID=...
-  FACEBOOK_APP_SECRET=...
-  ```
-- Submit for **App Review** to unlock `ads_read` / `read_insights` for non-test users
-  (requires a screencast demo — plan ~1–5 business days)
+#### 1. Meta App Review — BLOCKER for real customers
+Facebook app is unpublished — only the developer account can connect.
+- Submit for App Review at developers.facebook.com (requires screencast demo)
+- Request scopes: `ads_read`, `ads_management`, `leads_retrieval`
+- Plan 1–5 business days
 
-#### 2. Request the right scopes
-Update `lib/oauth-config.ts` facebook scopes to include `read_insights`:
-```ts
-scopes: ["ads_read", "ads_management", "read_insights", "leads_retrieval"],
-```
-
-#### 3. Exchange for a long-lived token
-The callback currently stores the short-lived token (~1 hr) returned from the code exchange.
-After exchanging the code, make a second call to get a long-lived token (60 days):
+#### 2. Exchange for a long-lived token
+The callback stores the short-lived token (~1 hr). After exchanging the code, make a second call:
 ```
 GET https://graph.facebook.com/v19.0/oauth/access_token
   ?grant_type=fb_exchange_token
@@ -48,24 +49,16 @@ GET https://graph.facebook.com/v19.0/oauth/access_token
   &client_secret={FACEBOOK_APP_SECRET}
   &fb_exchange_token={short_lived_token}
 ```
-Store the long-lived token + `token_expires_at` in the `integrations` row.
+Store the long-lived token + `token_expires_at`.
 File to update: `app/api/integrations/[provider]/callback/route.ts`
 
-#### 4. Token refresh before API calls
-Long-lived tokens expire after 60 days. Before calling the Meta API, check `token_expires_at`.
-If within 7 days of expiry, re-exchange using the same `fb_exchange_token` grant.
-A good place to put this: a `lib/meta/getValidToken.ts` helper called by `/api/meta/insights`.
+#### 3. Token refresh before API calls
+Long-lived tokens expire after 60 days. Build `lib/meta/getValidToken.ts`:
+check `token_expires_at`, re-exchange if within 7 days of expiry.
+Call from `/api/meta/insights` before using the token.
 
-#### 5. Account discovery after connect
-After a successful OAuth, call `/me/adaccounts` with the new token and store the
-discovered account IDs in the `integrations` row (e.g., a `metadata` jsonb column).
-This removes the need for the `FOUNDER_ACCOUNT_ID` / `FOUNDER_BUSINESS_ID` env var fallback
-in `app/api/meta/insights/route.ts`.
-
-#### 6. Scope the insights route to the connected token
-`/api/meta/insights` already fetches the token from `integrations` by `org_id` — this is correct.
-Once the OAuth flow is live, remove the founder-specific fallback constants and rely solely
-on the discovered account IDs stored in step 5.
+#### 4. Account discovery after connect
+After OAuth, call `/me/adaccounts` and store discovered account IDs in a `metadata` jsonb column on `integrations`. Removes the `FOUNDER_ACCOUNT_ID` / `FOUNDER_BUSINESS_ID` env var fallback.
 
 ---
 
@@ -80,35 +73,27 @@ No subscription system exists. Without it you cannot charge anyone.
 - Add Stripe, create products/prices for each plan tier
 - Webhook route: `app/api/webhooks/stripe/route.ts` — update `organizations.stripe_subscription_status`
 - Enforce in `proxy.ts`: redirect to `/billing` if subscription is inactive
-- Stub in AGENTS.md once pattern is established:
-  ```
-  organizations.stripe_subscription_status — checked in proxy.ts before serving /dashboard
-  ```
 
 #### Forgot Password Page — BLOCKER
 `/forgot-password` link exists in the login form but the page doesn't exist.
 - Create `app/(auth)/forgot-password/page.tsx`
 - Call `supabase.auth.resetPasswordForEmail(email, { redirectTo: ... })`
 
-#### Meta App Review — BLOCKER for real customers
-Facebook app is in dev mode — only test users can connect Meta Ads.
-- Submit for App Review at developers.facebook.com (requires screencast demo)
-- Request scopes: `ads_read`, `ads_management`, `read_insights`, `leads_retrieval`
-- Also enter webhook URLs per TODO items above (data deletion, deauthorize callback)
-- Plan 1–5 business days — start this in parallel with other dev work
-
-#### Meta Token Refresh — required before go-live
-Short-lived tokens (~1 hr) get stored today. First customers will silently lose their Meta integration within hours.
-- Build `lib/meta/getValidToken.ts`: check `token_expires_at`, re-exchange if within 7 days of expiry
-- Call from `/api/meta/insights` before using the token
-- Details in Meta OAuth section above (step 3 & 4)
+#### Affiliate Program
+Users get a unique referral link. If someone signs up via that link, the referrer earns 30% recurring commission on that user's subscription.
+- Add `referral_code` (unique, auto-generated) and `referred_by` (org_id of referrer) columns to `organizations`
+- Track referral at signup: read referral code from URL param, store `referred_by` on the new org
+- Integrate with Stripe: when a referred user's subscription invoice is paid, trigger a 30% payout to the referrer
+- Options for payout: Stripe Connect (recommended — automates payouts to referrer's bank) or manual payout tracking
+- Referral dashboard: show referrer how many signups they've driven and total commission earned
+- Landing page: shareable link format `https://sourceiq.app/?ref=THEIR_CODE`
 
 ---
 
 ### Before 50 customers
 
 #### Background Data Sync — performance & rate limits
-Every dashboard load currently hits Meta's API directly. At 50 clients this will hit rate limits and be slow.
+Every dashboard load currently hits Meta/GHL APIs directly. At 50 clients this will hit rate limits and be slow.
 - Create a `metrics` table in Supabase to cache synced data per org per provider
 - Set up a Vercel Cron job (or Supabase Edge Function) to sync all connected orgs hourly
 - Dashboard reads from `metrics` table, not live API calls
@@ -142,18 +127,31 @@ If multiple pricing tiers exist (e.g., 3 integrations vs. unlimited), enforce at
 
 #### Team Invites UI
 `invites` table exists in the DB schema but there's no UI to send or accept invitations.
-Agency/consultant clients will ask for this early — it's a key use case per onboarding role options.
 - Build invite flow in SettingsPage
 - Accept route: `app/api/invites/[token]/route.ts`
 
 ---
 
-### GHL Integration (next up)
+### Remaining Integrations
 
-`lib/oauth-config.ts` already has GHL configured.
+#### Google Ads
+`lib/oauth-config.ts` already has Google configured.
+- Register app in Google Cloud Console, get CLIENT_ID + CLIENT_SECRET
+- Add `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` to Vercel env vars
+- Build `/api/google/insights/route.ts`
+- Wire Google row in SourceTable
 
-- [ ] Register app at marketplace.gohighlevel.com, get CLIENT_ID + CLIENT_SECRET
-- [ ] Add `GHL_CLIENT_ID` / `GHL_CLIENT_SECRET` to Vercel env vars
-- [ ] Build `/api/ghl/sync/route.ts` — fetch contacts/pipeline data, return in consistent shape
-- [ ] Wire GHL row in `EmptySourceTable` to show real data (same pattern as Meta row)
-- [ ] Test connect → callback → insights flow end to end
+#### HubSpot
+- Register app at developers.hubspot.com
+- Build `/api/hubspot/sync/route.ts`
+- Wire HubSpot row in SourceTable
+
+#### Salesforce
+- Register connected app in Salesforce Setup
+- Build `/api/salesforce/sync/route.ts`
+- Wire Salesforce row in SourceTable
+
+#### Jobber
+- Register app at developer.getjobber.com
+- Build `/api/jobber/sync/route.ts`
+- Wire Jobber row in SourceTable
