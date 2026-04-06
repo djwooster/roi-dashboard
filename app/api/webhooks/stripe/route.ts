@@ -52,12 +52,13 @@ export async function POST(request: NextRequest) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      const orgId = session.subscription_data?.metadata?.org_id
-        ?? (session.metadata?.org_id as string | undefined);
+      if (!session.subscription) break;
 
-      if (!orgId || !session.subscription) break;
-
+      // org_id is stored on the subscription metadata (set via subscription_data.metadata at checkout creation)
       const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+      const orgId = subscription.metadata?.org_id ?? (session.metadata?.org_id as string | undefined);
+      if (!orgId) break;
+
       await updateOrgSubscription(orgId, {
         stripe_subscription_status: toStatus(subscription.status),
         stripe_subscription_id: subscription.id,
@@ -92,8 +93,8 @@ export async function POST(request: NextRequest) {
     }
 
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice;
-      const subId = invoice.subscription as string | null;
+      const invoice = event.data.object as Stripe.Invoice & { subscription?: string | null };
+      const subId = invoice.subscription ?? null;
       if (!subId) break;
 
       const subscription = await stripe.subscriptions.retrieve(subId);
