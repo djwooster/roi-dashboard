@@ -27,7 +27,8 @@ async function updateOrgSubscription(orgId: string, update: {
   stripe_price_id?: string;
 }) {
   const admin = createAdminClient();
-  await admin.from("organizations").update(update).eq("id", orgId);
+  const { error } = await admin.from("organizations").update(update).eq("id", orgId);
+  if (error) throw new Error(`DB update failed for org ${orgId}: ${error.message}`);
 }
 
 export async function POST(request: NextRequest) {
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  try {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -106,6 +108,11 @@ export async function POST(request: NextRequest) {
       });
       break;
     }
+  }
+  } catch (err) {
+    // Return 500 so Stripe retries — all DB updates are idempotent so retries are safe
+    const message = err instanceof Error ? err.message : "Webhook handler failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

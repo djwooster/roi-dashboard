@@ -138,6 +138,26 @@ After OAuth, call `/me/adaccounts` and store discovered account IDs in a `metada
 
 ---
 
+## Code Quality / Technical Debt
+
+Small items identified during architecture audit — none are blockers but worth cleaning up before scaling.
+
+#### Billing page price hardcoded
+`/billing/page.tsx` shows `$297 / month` as a string literal. If you change the price in Stripe, the page will show the wrong amount.
+- Option A (simple): move price to an env var `NEXT_PUBLIC_PLAN_PRICE=297`
+- Option B (proper): fetch the price from Stripe Products API at build time via `stripe.prices.retrieve(STRIPE_PRICE_ID)` and render it dynamically
+
+#### Stripe `Invoice` type cast
+`app/api/webhooks/stripe/route.ts` uses `Stripe.Invoice & { subscription?: string | null }` to work around a type mismatch introduced by the `2025-03-31.basil` API version renaming fields. Works correctly but is a smell.
+- Revisit when Stripe SDK types stabilize for this API version
+- Or pin to an earlier stable API version that has `invoice.subscription` typed correctly
+
+#### `run npm run build` before every push
+Several consecutive deploys failed due to TypeScript errors caught only at build time.
+- Add a pre-push git hook or CI check: `npm run build` must pass before push
+
+---
+
 ## Scale Roadmap
 
 Priority order reflects what actually blocks revenue or customers.
