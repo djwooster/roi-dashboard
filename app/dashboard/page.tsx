@@ -16,6 +16,7 @@ import SourceDrawer from "@/components/SourceDrawer";
 import { leadSources } from "@/lib/mock-data";
 import { useDemoMode } from "@/lib/demo-context";
 import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
+import type { GHLSyncResponse } from "@/app/api/ghl/sync/route";
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 function Toast({ message, onDone }: { message: string; onDone: () => void }) {
@@ -164,11 +165,17 @@ export default function Dashboard() {
     ? leadSources.find((s) => s.id === selectedSource) ?? null
     : null;
   const [metaData, setMetaData] = useState<MetaInsightsResponse | null>(null);
+  const [ghlData, setGhlData] = useState<GHLSyncResponse | null>(null);
 
   useEffect(() => {
     fetch("/api/meta/insights")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data) setMetaData(data); })
+      .catch(() => {});
+
+    fetch("/api/ghl/sync")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setGhlData(data); })
       .catch(() => {});
   }, []);
 
@@ -220,8 +227,8 @@ export default function Dashboard() {
                 transition={{ duration: 0.2 }}
                 className="px-6 py-5 space-y-5 max-w-[1400px]"
               >
-                <KPIBar metaData={metaData} />
-                <SourceTable metaData={metaData} onSelectSource={demo ? handleSelectSource : undefined} selectedSource={demo ? selectedSource : null} />
+                <KPIBar metaData={metaData} ghlData={ghlData} />
+                <SourceTable metaData={metaData} ghlData={ghlData} onSelectSource={demo ? handleSelectSource : undefined} selectedSource={demo ? selectedSource : null} />
                 <div className="grid grid-cols-2 gap-3">
                   <RevenueChart />
                   <TrendChart />

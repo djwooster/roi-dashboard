@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useDemoMode } from "@/lib/demo-context";
 import { leadSources, getCPL, getCostPerAppt, getROAS, getROI } from "@/lib/mock-data";
 import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
+import type { GHLSyncResponse } from "@/app/api/ghl/sync/route";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -144,7 +145,7 @@ function fmt(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-function EmptySourceTable({ meta, onSelectSource, selectedSource }: { meta?: MetaSummary; onSelectSource?: (id: string | null) => void; selectedSource?: string | null }) {
+function EmptySourceTable({ meta, ghl, onSelectSource, selectedSource }: { meta?: MetaSummary; ghl?: GHLSyncResponse | null; onSelectSource?: (id: string | null) => void; selectedSource?: string | null }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -169,18 +170,33 @@ function EmptySourceTable({ meta, onSelectSource, selectedSource }: { meta?: Met
             {SOURCES.map((source) => {
               const isSelected = selectedSource === source.id;
               const isFacebook = source.id === "facebook";
-              const cells: (string | null)[] = isFacebook && meta
-                ? [
-                    meta.leads > 0 ? meta.leads.toLocaleString() : null,
-                    fmt(meta.spend),
-                    meta.leads > 0 ? fmt(meta.spend / meta.leads) : null,
-                    null, // Appts
-                    null, // Cost/Appt
-                    null, // Revenue
-                    null, // ROAS
-                    null, // ROI %
-                  ]
-                : COLS.map(() => null);
+              const isGHL = source.id === "ghl";
+              let cells: (string | null)[];
+              if (isFacebook && meta) {
+                cells = [
+                  meta.leads > 0 ? meta.leads.toLocaleString() : null,
+                  fmt(meta.spend),
+                  meta.leads > 0 ? fmt(meta.spend / meta.leads) : null,
+                  null, // Appts
+                  null, // Cost/Appt
+                  null, // Revenue
+                  null, // ROAS
+                  null, // ROI %
+                ];
+              } else if (isGHL && ghl) {
+                cells = [
+                  ghl.contacts > 0 ? ghl.contacts.toLocaleString() : null,
+                  null, // Spend (CRM, no ad spend)
+                  null, // CPL
+                  ghl.opportunities > 0 ? ghl.opportunities.toLocaleString() : null,
+                  null, // Cost/Appt
+                  ghl.closedRevenue > 0 ? fmt(ghl.closedRevenue) : null,
+                  null, // ROAS
+                  null, // ROI %
+                ];
+              } else {
+                cells = COLS.map(() => null);
+              }
 
               return (
                 <tr
@@ -213,15 +229,15 @@ function EmptySourceTable({ meta, onSelectSource, selectedSource }: { meta?: Met
 
 type TableProps = {
   metaData?: MetaInsightsResponse | null;
+  ghlData?: GHLSyncResponse | null;
   onSelectSource?: (id: string | null) => void;
   selectedSource?: string | null;
 };
 
-export default function SourceTable({ metaData, onSelectSource, selectedSource }: TableProps) {
+export default function SourceTable({ metaData, ghlData, onSelectSource, selectedSource }: TableProps) {
   const demo = useDemoMode();
   if (demo) return <DemoSourceTable onSelectSource={onSelectSource} selectedSource={selectedSource} />;
 
-  // Aggregate Meta totals across all accounts for the Facebook Ads row
   const meta = metaData
     ? {
         spend: metaData.totals.spend,
@@ -231,5 +247,5 @@ export default function SourceTable({ metaData, onSelectSource, selectedSource }
       }
     : null;
 
-  return <EmptySourceTable meta={meta} onSelectSource={onSelectSource} selectedSource={selectedSource} />;
+  return <EmptySourceTable meta={meta} ghl={ghlData} onSelectSource={onSelectSource} selectedSource={selectedSource} />;
 }

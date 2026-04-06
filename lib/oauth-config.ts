@@ -8,6 +8,8 @@ type ProviderConfig = {
   clientSecretEnv: string;
   /** URL to fetch the authenticated user's ID after token exchange (provider-specific) */
   userIdUrl?: string;
+  /** Field in the token response body to use as provider_user_id (skips the userIdUrl fetch) */
+  tokenResponseIdField?: string;
 };
 
 export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
@@ -32,6 +34,7 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
     scopes: ["contacts.readonly", "opportunities.readonly"],
     clientIdEnv: "GHL_CLIENT_ID",
     clientSecretEnv: "GHL_CLIENT_SECRET",
+    tokenResponseIdField: "locationId",
   },
   hubspot: {
     authUrl: "https://app.hubspot.com/oauth/authorize",
@@ -58,5 +61,7 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
 
 export function getCallbackUrl(provider: OAuthProvider): string {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  // GHL blocks redirect URIs containing "ghl" — use the neutral /crm/callback alias
+  if (provider === "ghl") return `${base}/api/integrations/crm/callback`;
   return `${base}/api/integrations/${provider}/callback`;
 }

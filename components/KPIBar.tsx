@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useDemoMode } from "@/lib/demo-context";
 import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
+import type { GHLSyncResponse } from "@/app/api/ghl/sync/route";
 import {
   getTotals,
   kpiDeltas,
@@ -105,18 +106,22 @@ function fmtMoney(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-export default function KPIBar({ metaData }: { metaData?: MetaInsightsResponse | null }) {
+export default function KPIBar({ metaData, ghlData }: { metaData?: MetaInsightsResponse | null; ghlData?: GHLSyncResponse | null }) {
   const demo = useDemoMode();
 
   if (!demo) {
-    const spend = metaData?.totals.spend ?? null;
-    const leads = metaData?.totals.leads ?? null;
+    const metaSpend = metaData?.totals.spend ?? 0;
+    const metaLeads = metaData?.totals.leads ?? 0;
+    const totalLeads = metaLeads + (ghlData?.contacts ?? 0);
+    const totalRevenue = (metaData?.totals.revenue ?? 0) + (ghlData?.closedRevenue ?? 0);
+
     return (
       <div className="flex gap-3">
         {LABELS.map((label, i) => {
           let value: string | null = null;
-          if (label === "Total Spend" && spend !== null) value = fmtMoney(spend);
-          if (label === "Total Leads" && leads !== null && leads > 0) value = leads.toLocaleString();
+          if (label === "Total Spend" && metaSpend > 0) value = fmtMoney(metaSpend);
+          if (label === "Total Leads" && totalLeads > 0) value = totalLeads.toLocaleString();
+          if (label === "Total Revenue" && totalRevenue > 0) value = fmtMoney(totalRevenue);
           return <EmptyKPICard key={label} label={label} index={i} value={value} />;
         })}
       </div>

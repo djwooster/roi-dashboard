@@ -42,8 +42,11 @@ export async function GET(
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("scope", config.scopes.join(" "));
   authUrl.searchParams.set("state", state);
-  authUrl.searchParams.set("access_type", "offline"); // needed for refresh tokens (Google)
-  authUrl.searchParams.set("prompt", "consent"); // force refresh token on re-auth
+  // Google-specific params for refresh tokens — other providers ignore or reject these
+  if (provider === "google") {
+    authUrl.searchParams.set("access_type", "offline");
+    authUrl.searchParams.set("prompt", "consent");
+  }
 
   const response = NextResponse.redirect(authUrl.toString());
   // Store nonce in a short-lived cookie to verify on callback
