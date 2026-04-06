@@ -102,6 +102,15 @@ export default function IntegrationsPage() {
 
   const connectedCount = connected.size;
 
+  async function handleDisconnect(provider: string) {
+    await fetch(`/api/integrations/${provider}/disconnect`, { method: "POST" });
+    setConnected((prev) => {
+      const next = new Set(prev);
+      next.delete(provider);
+      return next;
+    });
+  }
+
   return (
     <div className="px-6 py-5 max-w-[900px]">
       <motion.div
@@ -186,6 +195,7 @@ export default function IntegrationsPage() {
                   item={item}
                   index={startIndex + j}
                   isConnected={connected.has(item.provider)}
+                  onDisconnect={handleDisconnect}
                 />
               ))}
             </div>
@@ -209,10 +219,12 @@ function IntegrationCard({
   item,
   index,
   isConnected,
+  onDisconnect,
 }: {
   item: Integration;
   index: number;
   isConnected: boolean;
+  onDisconnect: (provider: string) => void;
 }) {
   return (
     <motion.div
@@ -246,14 +258,12 @@ function IntegrationCard({
       </div>
 
       {isConnected ? (
-        <div className="flex gap-2">
-          <a
-            href={`/api/integrations/${item.provider}/connect`}
-            className="flex-1 text-center text-[11px] font-medium text-[#525252] border border-[#e5e5e5] rounded-md py-1.5 hover:border-[#a3a3a3] transition-colors"
-          >
-            Reconnect
-          </a>
-        </div>
+        <button
+          onClick={() => onDisconnect(item.provider)}
+          className="w-full text-center text-[11px] font-medium text-red-500 border border-red-200 rounded-md py-1.5 hover:border-red-400 hover:text-red-600 transition-colors"
+        >
+          Disconnect
+        </button>
       ) : (
         <a
           href={`/api/integrations/${item.provider}/connect`}
