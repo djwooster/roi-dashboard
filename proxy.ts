@@ -71,6 +71,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Authenticated user who already finished onboarding hitting auth pages
+  // Note: /forgot-password and /reset-password are intentionally excluded — always accessible
   if (user && (pathname === "/login" || pathname === "/signup")) {
     const onboardingDone = user.user_metadata?.onboarding_completed === true;
     const url = request.nextUrl.clone();

@@ -6,7 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/onboarding";
+  const type = searchParams.get("type");
+
+  // Recovery emails land here with type=recovery — send to reset password page
+  const next = type === "recovery"
+    ? "/reset-password"
+    : (searchParams.get("next") ?? "/onboarding");
 
   if (code) {
     const supabase = await createClient();
