@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type Stripe from "stripe";
 
 // Stripe sends the raw body — do not parse as JSON before signature verification
-export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type SubscriptionStatus = "inactive" | "trialing" | "active" | "past_due" | "canceled";
 
@@ -31,7 +31,7 @@ async function updateOrgSubscription(orgId: string, update: {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.text();
+  const body = Buffer.from(await request.arrayBuffer()).toString("utf-8");
   const signature = request.headers.get("stripe-signature");
 
   if (!signature) {
