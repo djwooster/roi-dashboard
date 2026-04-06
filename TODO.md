@@ -144,11 +144,22 @@ Priority order reflects what actually blocks revenue or customers.
 
 ### Before first paying customer
 
-#### Stripe Billing — BLOCKER
-No subscription system exists. Without it you cannot charge anyone.
-- Add Stripe, create products/prices for each plan tier
-- Webhook route: `app/api/webhooks/stripe/route.ts` — update `organizations.stripe_subscription_status`
-- Enforce in `proxy.ts`: redirect to `/billing` if subscription is inactive
+#### Stripe Billing — BUILT, needs env vars + Stripe dashboard setup
+- [x] `stripe` package installed
+- [x] `organizations` table: `stripe_customer_id`, `stripe_subscription_status`, `stripe_subscription_id`, `stripe_price_id`
+- [x] `/api/stripe/checkout` — creates Checkout session, reuses existing customer
+- [x] `/api/stripe/portal` — Customer Portal for managing billing from Settings
+- [x] `/api/webhooks/stripe` — handles `checkout.session.completed`, `subscription.updated`, `subscription.deleted`, `invoice.payment_failed`
+- [x] `/billing` — upgrade page with feature list + subscribe button
+- [x] `proxy.ts` — enforcement logic ready, gated behind `BILLING_ENFORCEMENT=true`
+
+**To activate billing:**
+1. Create a product + price in Stripe dashboard (or use test mode first)
+2. Add to Vercel env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+3. Register webhook endpoint in Stripe dashboard: `https://sourceiq.app/api/webhooks/stripe`
+   - Events to enable: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
+4. Set `BILLING_ENFORCEMENT=true` in Vercel env vars when ready to charge customers
+5. Add "Manage billing" button to SettingsPage that POSTs to `/api/stripe/portal`
 
 #### Forgot Password Page — BLOCKER
 `/forgot-password` link exists in the login form but the page doesn't exist.

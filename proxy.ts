@@ -70,6 +70,34 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Billing enforcement — redirect to /billing if subscription is inactive.
+  // Enable by setting BILLING_ENFORCEMENT=true in env vars at launch.
+  // /billing itself is always accessible so users can subscribe.
+  if (
+    process.env.BILLING_ENFORCEMENT === "true" &&
+    user &&
+    pathname.startsWith("/dashboard") &&
+    pathname !== "/billing"
+  ) {
+    const orgId = user.user_metadata?.org_id;
+    if (orgId) {
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("stripe_subscription_status")
+        .eq("id", orgId)
+        .single();
+
+      const active = org?.stripe_subscription_status === "active" ||
+        org?.stripe_subscription_status === "trialing";
+
+      if (!active) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/billing";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   // Authenticated user who already finished onboarding hitting auth pages
   // Note: /forgot-password and /reset-password are intentionally excluded — always accessible
   if (user && (pathname === "/login" || pathname === "/signup")) {
