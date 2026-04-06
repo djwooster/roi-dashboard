@@ -389,20 +389,28 @@ function BillingTab() {
   async function handleCheckout() {
     setError(null);
     setActionLoading(true);
-    const res = await fetch("/api/stripe/checkout", { method: "POST" });
-    const data = await res.json();
-    if (data.url) { window.location.href = data.url; return; }
-    setError(data.error ?? "Something went wrong.");
+    try {
+      const res = await fetch("/api/stripe/checkout", { method: "POST" });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; return; }
+      setError(data.error ?? "Something went wrong.");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    }
     setActionLoading(false);
   }
 
   async function handlePortal() {
     setError(null);
     setActionLoading(true);
-    const res = await fetch("/api/stripe/portal", { method: "POST" });
-    const data = await res.json();
-    if (data.url) { window.location.href = data.url; return; }
-    setError(data.error ?? "Something went wrong.");
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; return; }
+      setError(data.error ?? "Something went wrong.");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    }
     setActionLoading(false);
   }
 
