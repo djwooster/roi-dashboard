@@ -76,9 +76,9 @@ export async function GET() {
     ]);
 
     const [contactsData, oppsData, wonData] = await Promise.all([
-      contactsRes.json() as Promise<GHLListResponse<GHLContact>>,
-      oppsRes.json() as Promise<GHLListResponse<GHLOpportunity>>,
-      wonRes.json() as Promise<GHLListResponse<GHLOpportunity>>,
+      contactsRes.ok ? contactsRes.json() as Promise<GHLListResponse<GHLContact>> : Promise.resolve({}),
+      oppsRes.ok ? oppsRes.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve({}),
+      wonRes.ok ? wonRes.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve({}),
     ]);
 
     const contacts = contactsData.meta?.total ?? 0;
