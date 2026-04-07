@@ -94,6 +94,12 @@ File to update: `app/api/integrations/[provider]/callback/route.ts`
 ### Stripe `Invoice` type cast
 `app/api/webhooks/stripe/route.ts` uses `Stripe.Invoice & { subscription?: string | null }` due to an SDK type mismatch in API version `2025-03-31.basil`. Revisit when SDK types stabilise.
 
+### Vercel Pro: restore hourly background sync
+Currently on Hobby plan — cron is limited to once daily (6am UTC, `vercel.json`).
+When upgrading to Pro:
+1. `vercel.json` → change `"0 6 * * *"` to `"0 * * * *"`
+2. `app/api/ghl/sync/route.ts` → change `CACHE_STALE_MS` from `25h` back to `2h`
+
 ### Pre-push build check
 Several consecutive deploys failed due to TypeScript errors caught only at build time.
 Add a pre-push git hook: `npm run build` must pass before push.
