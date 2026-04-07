@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { ChevronUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useDemoMode } from "@/lib/demo-context";
 
@@ -15,7 +16,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    label: "Overview",
+    label: "Dashboard",
     page: "overview",
     icon: (
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
@@ -85,7 +86,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
   const isActive = (item: NavItem) => {
     if (item.page === "integrations") return currentPage === "integrations";
     if (item.page === "settings") return currentPage === "settings";
-    if (item.label === "Overview") return currentPage === "overview";
+    if (item.label === "Dashboard") return currentPage === "overview";
     return false;
   };
 
@@ -100,9 +101,7 @@ export default function Sidebar({ currentPage, onNavigate }: Props) {
       <div className="px-4 py-4 border-b border-[#e5e5e5]">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 bg-[#0a0a0a] rounded flex items-center justify-center">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M2 9L6 3L10 9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <ChevronUp size={16} color="white" strokeWidth={2.5} />
           </div>
           <span className="text-sm font-semibold text-[#0a0a0a] tracking-tight">
             SourceIQ

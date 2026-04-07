@@ -7,20 +7,48 @@ import type {
   GHLSyncResponse,
 } from "./types";
 
-// Fetches all KPI and pipeline data for a GHL location.
+export type GHLDateRange = {
+  from?: string; // ISO date string, e.g. "2026-01-01"
+  to?: string;   // ISO date string, e.g. "2026-03-31"
+};
+
+// Builds the date portion of a GHL opportunities/search query string.
+// GHL uses startDate / endDate to filter by the opportunity's createdAt field.
+// We only apply this to opportunity endpoints — the contacts count endpoint
+// doesn't reliably support date filtering and is intentionally left all-time.
+function oppDateParams(range?: GHLDateRange): string {
+  if (!range) return "";
+  const p = new URLSearchParams();
+  if (range.from) p.set("startDate", range.from);
+  if (range.to) p.set("endDate", range.to);
+  const s = p.toString();
+  return s ? `&${s}` : "";
+}
+
+// Fetches KPI and pipeline data for a GHL location.
 // Used by both the authenticated sync route (/api/ghl/sync) and the public
 // report page (/report/[token]) — the only difference between those two callers
 // is how they obtained the access token and location ID.
 //
+// dateRange is optional — omitting it returns all-time data (default for report page).
+//
 // Pipeline data is fetched in an isolated try/catch so a GHL API failure there
 // doesn't wipe out the basic KPI numbers (contacts, opportunities, revenue).
-export async function fetchLocationData(locationId: string, token: string): Promise<GHLSyncResponse> {
+export async function fetchLocationData(
+  locationId: string,
+  token: string,
+  dateRange?: GHLDateRange,
+): Promise<GHLSyncResponse> {
+  const dates = oppDateParams(dateRange);
+
   const [contactsRes, oppsRes, wonRes] = await Promise.all([
+    // Contacts count is intentionally not date-filtered — agencies want total pipeline
+    // size, not just contacts added in the selected window.
     ghlFetch(`/contacts/?locationId=${locationId}&limit=1`, token),
-    ghlFetch(`/opportunities/search?location_id=${locationId}&limit=1`, token),
+    ghlFetch(`/opportunities/search?location_id=${locationId}&limit=1${dates}`, token),
     // Fetch won opps with full records so we can sum revenue.
     // limit=100 covers the vast majority of pipelines — pagination can be layered in later.
-    ghlFetch(`/opportunities/search?location_id=${locationId}&status=won&limit=100`, token),
+    ghlFetch(`/opportunities/search?location_id=${locationId}&status=won&limit=100${dates}`, token),
   ]);
 
   const empty = {} as GHLListResponse<GHLOpportunity>;
@@ -52,17 +80,17 @@ export async function fetchLocationData(locationId: string, token: string): Prom
             Promise.all(
               sortedStages.map((stage) =>
                 ghlFetch(
-                  `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&pipeline_stage_id=${stage.id}&status=open&limit=1`,
+                  `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&pipeline_stage_id=${stage.id}&status=open&limit=1${dates}`,
                   token
                 ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve(empty))
               )
             ),
             ghlFetch(
-              `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&status=lost&limit=1`,
+              `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&status=lost&limit=1${dates}`,
               token
             ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve(empty)),
             ghlFetch(
-              `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&status=won&limit=100`,
+              `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&status=won&limit=100${dates}`,
               token
             ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve(empty)),
           ]);

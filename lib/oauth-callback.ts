@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { OAUTH_PROVIDERS, getCallbackUrl, type OAuthProvider } from "@/lib/oauth-config";
+import { syncGHLLocations } from "@/lib/ghl/syncLocations";
 
 export async function handleOAuthCallback(request: NextRequest, provider: OAuthProvider) {
   const config = OAUTH_PROVIDERS[provider];
@@ -71,7 +72,15 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
   const supabase = await createClient();
 
   let providerUserId: string | null = null;
-  if (config.tokenResponseIdField) {
+  if (provider === "ghl") {
+    // GHL agency OAuth: token response includes companyId (agency-level connection).
+    // Single-location OAuth: only locationId is present.
+    // We prefer companyId so the integration row represents the whole agency account.
+    // After storing tokens, we sync all sub-account locations into ghl_locations.
+    const companyId = typeof tokens.companyId === "string" ? tokens.companyId : null;
+    const locationId = typeof tokens.locationId === "string" ? tokens.locationId : null;
+    providerUserId = companyId ?? locationId;
+  } else if (config.tokenResponseIdField) {
     const val = tokens[config.tokenResponseIdField];
     providerUserId = typeof val === "string" ? val : null;
   } else if (config.userIdUrl) {
@@ -98,6 +107,20 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
     },
     { onConflict: "org_id,provider" }
   );
+
+  // After a GHL agency connect, enumerate all sub-account locations and store
+  // them in ghl_locations. This is what enables the client switcher.
+  // We only do this when companyId is in the token response — single-location
+  // connects skip this and the sync route falls back to provider_user_id.
+  if (provider === "ghl" && typeof tokens.companyId === "string") {
+    try {
+      await syncGHLLocations(parsedState.orgId, tokens.companyId, tokens.access_token);
+    } catch (err) {
+      // Location sync is best-effort — the integration itself is already saved.
+      // Log the error but don't fail the entire OAuth flow over it.
+      console.error("[GHL] location sync failed after connect:", err);
+    }
+  }
 
   const response = NextResponse.redirect(dashboardUrl.toString());
   response.cookies.delete("oauth_nonce");

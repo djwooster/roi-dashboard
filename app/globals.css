@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
+  /* Brand accent — used for interactive highlights (toasts, badges, etc.).
+     Change here to update all accent elements at once. */
+  --color-brand: #2b64af;
 }
 
 * {

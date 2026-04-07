@@ -13,6 +13,9 @@ import LiveTicker from "@/components/LiveTicker";
 import IntegrationsPage from "@/components/IntegrationsPage";
 import SettingsPage from "@/components/SettingsPage";
 import SourceDrawer from "@/components/SourceDrawer";
+import ClientSwitcher, { type GHLLocation } from "@/components/ClientSwitcher";
+import DateRangePicker, { type DateRange } from "@/components/DateRangePicker";
+import { createClient } from "@/lib/supabase/client";
 import { leadSources } from "@/lib/mock-data";
 import { useDemoMode } from "@/lib/demo-context";
 import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
@@ -27,11 +30,11 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
+      exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
-      className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 bg-[#0a0a0a] text-white text-xs font-medium px-4 py-2.5 rounded-lg"
+      className="fixed top-5 right-5 z-50 flex items-center gap-2.5 bg-[var(--color-brand)] text-white text-xs font-medium px-4 py-2.5 rounded-lg"
     >
       <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
         <circle cx="6.5" cy="6.5" r="5.5" stroke="white" strokeWidth="1.2" />
@@ -42,118 +45,36 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
   );
 }
 
-// ── Export menu ───────────────────────────────────────────────────────────────
-function ExportMenu({ onToast }: { onToast: (msg: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
+// ── Share link button ─────────────────────────────────────────────────────────
+function ShareLinkButton({ onToast }: { onToast: (msg: string) => void }) {
+  async function handleClick() {
+    // Create (or retrieve existing) report URL, then copy to clipboard.
+    // The API upserts so repeated clicks always return the same persistent URL.
+    try {
+      const res = await fetch("/api/reports/create", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        await navigator.clipboard.writeText(data.url);
+        onToast("Report link copied — share it with your client!");
+      } else {
+        onToast(data.error ?? "GHL must be connected to generate a report.");
       }
+    } catch {
+      onToast("Could not generate report link. Please try again.");
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  const items: { label: string; icon: React.ReactNode; action: () => void }[] = [
-    {
-      label: "Export CSV",
-      icon: (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path d="M2 9.5h8M6 2v5.5M4 5.5L6 7.5l2-2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ),
-      action: () => {
-        setOpen(false);
-        onToast("CSV export started — check your downloads.");
-      },
-    },
-    {
-      label: "Export PDF",
-      icon: (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <rect x="1.5" y="1" width="9" height="10" rx="1" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M3.5 4h5M3.5 6h5M3.5 8h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-        </svg>
-      ),
-      action: () => {
-        setOpen(false);
-        onToast("PDF report is being generated.");
-      },
-    },
-    {
-      label: "Share Link",
-      icon: (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path d="M5 6.5a2.5 2.5 0 003.54 0l1-1a2.5 2.5 0 00-3.54-3.54L5.5 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          <path d="M7 5.5a2.5 2.5 0 00-3.54 0l-1 1a2.5 2.5 0 003.54 3.54L6.5 9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-        </svg>
-      ),
-      action: async () => {
-        setOpen(false);
-        // Create (or retrieve existing) report URL, then copy to clipboard.
-        // The API upserts so repeated clicks always return the same persistent URL.
-        try {
-          const res = await fetch("/api/reports/create", { method: "POST" });
-          const data = await res.json();
-          if (data.url) {
-            await navigator.clipboard.writeText(data.url);
-            onToast("Report link copied — share it with your client!");
-          } else {
-            onToast(data.error ?? "GHL must be connected to generate a report.");
-          }
-        } catch {
-          onToast("Could not generate report link. Please try again.");
-        }
-      },
-    },
-  ];
+  }
 
   return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-[11px] font-medium text-white bg-[#0a0a0a] px-3 py-1.5 rounded-md hover:bg-[#262626] transition-colors"
-      >
-        Export
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 10 10"
-          fill="none"
-          className={`transition-transform ${open ? "rotate-180" : ""}`}
-        >
-          <path d="M2 3.5l3 3 3-3" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-1.5 w-44 border border-[#e5e5e5] bg-white rounded-lg overflow-hidden z-50"
-          >
-            {items.map((item, i) => (
-              <button
-                key={item.label}
-                onClick={item.action}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#525252] hover:bg-[#f5f5f5] hover:text-[#0a0a0a] transition-colors text-left ${
-                  i < items.length - 1 ? "border-b border-[#f5f5f5]" : ""
-                }`}
-              >
-                <span className="text-[#a3a3a3]">{item.icon}</span>
-                {item.label}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    <button
+      onClick={handleClick}
+      className="flex items-center gap-1.5 text-[11px] font-medium text-white bg-[#0a0a0a] px-3 py-1.5 rounded-md hover:bg-[#262626] transition-colors"
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path d="M5 6.5a2.5 2.5 0 003.54 0l1-1a2.5 2.5 0 00-3.54-3.54L5.5 2.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+        <path d="M7 5.5a2.5 2.5 0 00-3.54 0l-1 1a2.5 2.5 0 003.54 3.54L6.5 9.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+      Share link
+    </button>
   );
 }
 
@@ -177,23 +98,86 @@ export default function Dashboard() {
   const selectedSourceObj = selectedSource
     ? leadSources.find((s) => s.id === selectedSource) ?? null
     : null;
+
   const [metaData, setMetaData] = useState<MetaInsightsResponse | null>(null);
   const [ghlData, setGhlData] = useState<GHLSyncResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const metaP = fetch("/api/meta/insights")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data) setMetaData(data); })
-      .catch(() => {});
+  // Agency client switcher state
+  const [locations, setLocations] = useState<GHLLocation[]>([]);
+  const [currentLocationId, setCurrentLocationId] = useState<string | null>(null);
+  const [currentLocationName, setCurrentLocationName] = useState<string | null>(null);
 
-    const ghlP = fetch("/api/ghl/sync")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data) setGhlData(data); })
-      .catch(() => {});
+  // Date range picker — default to last 30 days so the dashboard shows recent activity
+  // rather than potentially years of all-time data on first load.
+  const [dateRange, setDateRange] = useState<DateRange>({ label: "Last 30 days", from: (() => {
+    const d = new Date(); d.setDate(d.getDate() - 29); return d.toISOString().slice(0, 10);
+  })(), to: new Date().toISOString().slice(0, 10) });
 
-    Promise.allSettled([metaP, ghlP]).then(() => setLoading(false));
+  // Fetch GHL data for the given location + date range.
+  // Extracted into a callback so it can be called both on mount and on switcher/picker change.
+  const fetchGHL = useCallback(async (locationId: string | null, range: DateRange) => {
+    setGhlData(null);
+    const params = new URLSearchParams();
+    if (locationId) params.set("locationId", locationId);
+    if (range?.from) params.set("from", range.from);
+    if (range?.to) params.set("to", range.to);
+    const qs = params.toString();
+    const url = `/api/ghl/sync${qs ? `?${qs}` : ""}`;
+    try {
+      const r = await fetch(url);
+      if (r.ok) setGhlData(await r.json());
+    } catch { /* GHL not connected or API error — dashboard shows "—" */ }
   }, []);
+
+  // Initial load: resolve locations first, then fetch data in parallel.
+  // We load locations from Supabase client-side (this is a "use client" component)
+  // rather than adding another API route — the data is non-sensitive and RLS-scoped.
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+
+      // Resolve GHL locations for the client switcher.
+      const supabase = createClient();
+      const { data: locs } = await supabase
+        .from("ghl_locations")
+        .select("location_id, location_name")
+        .order("created_at", { ascending: true });
+
+      let resolvedLocationId: string | null = null;
+      if (locs && locs.length > 0) {
+        setLocations(locs);
+        resolvedLocationId = locs[0].location_id;
+        setCurrentLocationId(resolvedLocationId);
+        setCurrentLocationName(locs[0].location_name);
+      }
+
+      // Fetch Meta and GHL in parallel — GHL uses the resolved location (or falls
+      // back server-side to provider_user_id for single-location accounts).
+      const metaP = fetch("/api/meta/insights")
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data) setMetaData(data); })
+        .catch(() => {});
+
+      await Promise.allSettled([metaP, fetchGHL(resolvedLocationId, dateRange)]);
+      setLoading(false);
+    };
+
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-fetch GHL data when the user switches client or changes the date range.
+  // We skip this on the initial render (handled above) using a ref so we don't
+  // double-fetch on mount.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    fetchGHL(currentLocationId, dateRange);
+  }, [currentLocationId, dateRange, fetchGHL]);
 
   const demo = useDemoMode();
   const showToast = useCallback((msg: string) => setToast(msg), []);
@@ -202,7 +186,7 @@ export default function Dashboard() {
   const isOverview = currentPage === "overview";
   const isIntegrations = currentPage === "integrations";
   const isSettings = currentPage === "settings";
-  const headerTitle = isSettings ? "Settings" : isIntegrations ? "Integrations" : "Overview";
+  const headerTitle = isSettings ? "Settings" : isIntegrations ? "Integrations" : "Dashboard";
   const headerSub = isSettings
     ? "Manage your account and team"
     : isIntegrations
@@ -226,7 +210,18 @@ export default function Dashboard() {
           </div>
           {isOverview && (
             <div className="flex items-center gap-2">
-              <ExportMenu onToast={showToast} />
+              {/* Client switcher — only visible when 2+ GHL locations exist (agency mode) */}
+              <ClientSwitcher
+                locations={locations}
+                currentId={currentLocationId}
+                currentName={currentLocationName}
+                onSelect={(id, name) => {
+                  setCurrentLocationId(id);
+                  setCurrentLocationName(name);
+                }}
+              />
+              <DateRangePicker value={dateRange} onChange={setDateRange} />
+              <ShareLinkButton onToast={showToast} />
             </div>
           )}
         </div>

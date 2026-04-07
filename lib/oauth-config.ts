@@ -31,9 +31,20 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
   ghl: {
     authUrl: "https://marketplace.gohighlevel.com/oauth/chooselocation",
     tokenUrl: "https://services.leadconnectorhq.com/oauth/token",
-    scopes: ["contacts.readonly", "opportunities.readonly"],
+    // companies.readonly + locations.readonly unlock agency/company-level OAuth —
+    // GHL returns a companyId in the token response which lets us enumerate all
+    // sub-accounts. The existing contact/opp scopes are still needed for data fetches.
+    scopes: [
+      "contacts.readonly",
+      "opportunities.readonly",
+      "companies.readonly",
+      "locations.readonly",
+    ],
     clientIdEnv: "GHL_CLIENT_ID",
     clientSecretEnv: "GHL_CLIENT_SECRET",
+    // GHL returns either companyId (agency mode) or locationId (single-location mode)
+    // in the token response. We handle the priority in oauth-callback.ts because we
+    // need to branch behavior (location sync vs. simple store), not just pick a field.
     tokenResponseIdField: "locationId",
   },
   hubspot: {

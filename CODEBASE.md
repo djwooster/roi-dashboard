@@ -9,7 +9,7 @@ Keep this updated when adding routes, components, or lib files.
 
 | Route | Method | Auth | What it does |
 |---|---|---|---|
-| `/api/ghl/sync` | GET | user session | Returns KPIs + pipeline data for the user's connected GHL location. Calls `fetchLocationData`. |
+| `/api/ghl/sync` | GET | user session | Returns KPIs + pipeline data. Params: `?locationId=` (agency switcher), `?from=` / `?to=` (date range). Calls `fetchLocationData`. |
 | `/api/meta/insights` | GET | user session | Returns Meta ad spend, leads, revenue from the connected ad account. |
 | `/api/reports/create` | POST | user session | Creates (or retrieves existing) shareable report token for the org's GHL location. |
 | `/api/integrations/[provider]/connect` | GET | user session | Builds OAuth URL, sets CSRF nonce cookie. Provider config from `lib/oauth-config.ts`. |
@@ -29,7 +29,7 @@ Keep this updated when adding routes, components, or lib files.
 |---|---|---|
 | `/` | none | Landing page (marketing). Authenticated users redirect to `/dashboard`. |
 | `/demo` | none | Marketing demo — Dashboard wrapped in `DemoContext.Provider`. Always uses mock data. |
-| `/dashboard` | user + onboarding | Main app. Fetches GHL + Meta data on mount. Passes to KPIBar, SourceTable, PipelineFunnel. |
+| `/dashboard` | user + onboarding | Main app. Loads `ghl_locations` on mount, resolves active location, fetches GHL + Meta. Header has ClientSwitcher + DateRangePicker. |
 | `/onboarding` | user | Org setup form. Calls `create_org_with_owner` RPC (atomic — org + member + profile in one transaction). |
 | `/report/[token]` | none (token = auth) | Public client report. Looks up report by token, fetches live GHL data via `fetchLocationData`. Mobile-first. |
 | `/billing` | user | Upgrade page. Posts to `/api/stripe/checkout`. Shows current subscription status. |
@@ -51,8 +51,9 @@ Keep this updated when adding routes, components, or lib files.
 |---|---|
 | `lib/ghl/types.ts` | **Single source of truth for all GHL types.** `GHLPipelineData`, `GHLSyncResponse`, `GHLListResponse`, etc. Import from here — not from route files. |
 | `lib/ghl/api.ts` | `ghlFetch` helper + `GHL_API` / `GHL_VERSION` constants. All GHL HTTP calls go through this. |
-| `lib/ghl/fetchLocationData.ts` | **Shared KPI + pipeline fetch logic.** Used by both `/api/ghl/sync` and `/report/[token]`. If you change sync logic, change it here. |
+| `lib/ghl/fetchLocationData.ts` | **Shared KPI + pipeline fetch logic.** Accepts optional `dateRange` (`from`/`to`). Used by both `/api/ghl/sync` and `/report/[token]`. |
 | `lib/ghl/getValidToken.ts` | Validates GHL access token, refreshes if expiring within 5 min. Marks integration inactive on refresh failure. |
+| `lib/ghl/syncLocations.ts` | Fetches all sub-account locations for a GHL company via `GET /locations/?companyId={id}` and upserts to `ghl_locations`. Called after agency OAuth callback. |
 | `lib/oauth-config.ts` | **Single source of truth for all OAuth providers.** Add new providers here first. Includes `getCallbackUrl()` which handles the GHL/crm alias. |
 | `lib/oauth-callback.ts` | Shared OAuth callback handler — CSRF check, token exchange, `provider_user_id` fetch, `integrations` upsert. Used by the `[provider]/callback` route. |
 | `lib/stripe.ts` | Stripe client singleton. |
@@ -73,6 +74,8 @@ Keep this updated when adding routes, components, or lib files.
 | `components/PipelineFunnel.tsx` | GHL pipeline funnel — stage bars, per-stage counts, conversion rates. Tab selector when multiple pipelines. Skeleton loader. |
 | `components/SettingsPage.tsx` | Settings tabs: account, team, integrations, billing. Billing tab handles subscribe + manage billing. |
 | `components/IntegrationsPage.tsx` | Connect/disconnect integrations UI. Reads `integrations` table client-side for status. |
+| `components/ClientSwitcher.tsx` | Agency client switcher. Searchable dropdown listing `ghl_locations`. Hidden when < 2 locations. Sits in dashboard header between title and date picker. |
+| `components/DateRangePicker.tsx` | Preset date range selector (All time / Today / 7D / 30D / 90D). Passes ISO date strings to the GHL sync route as `?from=&to=`. |
 | `components/Sidebar.tsx` | Left nav. Demo mode: logout suppressed (clicking does nothing). |
 | `components/SourceDrawer.tsx` | Right slide-in drawer for source drill-down. Demo only for now — `onSelectSource` not passed in real mode. |
 | `components/TrendChart.tsx` | Trend sparkline chart. Demo only until background sync exists. |
@@ -92,7 +95,8 @@ Keep this updated when adding routes, components, or lib files.
 | `invites` | Pending invitations. UI not yet built. |
 | `profiles` | Per-user profile data (company name, role, channels, onboarding status). |
 | `integrations` | OAuth connections. One row per org+provider. Stores tokens, expiry, `provider_user_id`, status. |
-| `reports` | Shareable report links. One per org (will become one per location after agency OAuth). Token = access control. |
+| `reports` | Shareable report links. One per org today; needs `(org_id, location_id)` unique constraint once per-client report URLs are built (TODO #3). Token = access control. |
+| `ghl_locations` | GHL sub-account locations synced after agency OAuth. One row per location per org. Empty for single-location connections — sync route falls back to `integrations.provider_user_id` when empty. |
 
 ---
 
