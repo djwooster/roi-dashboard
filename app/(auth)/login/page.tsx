@@ -68,7 +68,7 @@ function LoginForm() {
 
       {/* Heading */}
       <div className="text-center mb-7">
-        <h1 className="text-2xl font-bold text-[#0a0a0a] tracking-tight">Log in to <a href="/">SourceIQ</a></h1>
+        <h1 className="text-2xl font-bold text-[#0a0a0a] tracking-tight">Log in to <Link href="/" className="hover:opacity-60 transition-opacity">SourceIQ</Link></h1>
         <p className="mt-2 text-sm text-[#0a0a0a]/50">
           Don&apos;t have an account?{" "}
           <Link href={signupHref} className="text-[#0a0a0a] font-medium hover:text-[#0a0a0a]/70 transition-colors">
