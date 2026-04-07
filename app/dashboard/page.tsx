@@ -91,9 +91,22 @@ function ExportMenu({ onToast }: { onToast: (msg: string) => void }) {
           <path d="M7 5.5a2.5 2.5 0 00-3.54 0l-1 1a2.5 2.5 0 003.54 3.54L6.5 9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
       ),
-      action: () => {
+      action: async () => {
         setOpen(false);
-        onToast("Shareable link copied to clipboard!");
+        // Create (or retrieve existing) report URL, then copy to clipboard.
+        // The API upserts so repeated clicks always return the same persistent URL.
+        try {
+          const res = await fetch("/api/reports/create", { method: "POST" });
+          const data = await res.json();
+          if (data.url) {
+            await navigator.clipboard.writeText(data.url);
+            onToast("Report link copied — share it with your client!");
+          } else {
+            onToast(data.error ?? "GHL must be connected to generate a report.");
+          }
+        } catch {
+          onToast("Could not generate report link. Please try again.");
+        }
       },
     },
   ];

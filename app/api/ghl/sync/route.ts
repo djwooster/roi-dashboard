@@ -22,6 +22,10 @@ export type GHLPipelineData = {
   pipelineName: string;
   stages: GHLPipelineStage[];
   lostCount: number;
+  wonCount: number;
+  wonRevenue: number;
+  closeRate: number | null;    // per-pipeline: wonCount / (wonCount + lostCount)
+  avgDealValue: number | null; // per-pipeline: wonRevenue / wonCount
 };
 
 export type GHLSyncResponse = {
@@ -110,28 +114,42 @@ export async function GET() {
         pipelines = await Promise.all(
           allPipelines.map(async (pl) => {
             const sortedStages = [...pl.stages].sort((a, b) => a.position - b.position);
-            const [stageResults, lostRes] = await Promise.all([
+            const [stageResults, lostRes, wonRes] = await Promise.all([
               Promise.all(
                 sortedStages.map((stage) =>
                   ghlFetch(
                     `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&pipeline_stage_id=${stage.id}&status=open&limit=1`,
                     token
-                  ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve({}))
+                  ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve({} as GHLListResponse<GHLOpportunity>))
                 )
               ),
               ghlFetch(
                 `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&status=lost&limit=1`,
                 token
-              ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve({})),
+              ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve({} as GHLListResponse<GHLOpportunity>)),
+              // Fetch won opps with full records so we can sum revenue per pipeline.
+              // limit=100 covers most pipelines; pagination can be added later if needed.
+              ghlFetch(
+                `/opportunities/search?location_id=${locationId}&pipeline_id=${pl.id}&status=won&limit=100`,
+                token
+              ).then((r) => r.ok ? r.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve({} as GHLListResponse<GHLOpportunity>)),
             ]);
 
             const lostCount = (lostRes as GHLListResponse<GHLOpportunity>).meta?.total ?? 0;
+            const plWonOpps = (wonRes as GHLListResponse<GHLOpportunity>).opportunities ?? [];
+            const wonCount = (wonRes as GHLListResponse<GHLOpportunity>).meta?.total ?? plWonOpps.length;
+            const wonRevenue = plWonOpps.reduce((sum, o) => sum + (o.monetaryValue ?? 0), 0);
+            const closeRate = wonCount + lostCount > 0
+              ? Math.round((wonCount / (wonCount + lostCount)) * 100)
+              : null;
+            const avgDealValue = wonCount > 0 ? Math.round(wonRevenue / wonCount) : null;
+
             const stages: GHLPipelineStage[] = sortedStages.map((stage, i) => ({
               name: stage.name,
               count: (stageResults[i] as GHLListResponse<GHLOpportunity>).meta?.total ?? 0,
             }));
 
-            return { pipelineName: pl.name, stages, lostCount };
+            return { pipelineName: pl.name, stages, lostCount, wonCount, wonRevenue, closeRate, avgDealValue };
           })
         );
       }
