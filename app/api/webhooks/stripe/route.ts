@@ -46,9 +46,33 @@ async function updateOrgSubscription(orgId: string, update: {
   stripe_price_id?: string;
 }) {
   const admin = createAdminClient();
+
+  // Update the organizations table — source of truth for billing state.
   const { error } = await admin.from("organizations").update(update).eq("id", orgId);
   // Throw on DB failure so the caller returns 500 and Stripe retries the event.
   if (error) throw new Error(`DB update failed for org ${orgId}: ${error.message}`);
+
+  // Also mirror the subscription status into the owner's auth metadata so
+  // proxy.ts can enforce billing on every request without a DB round-trip.
+  // We look up the owner via the members table (role = 'owner').
+  // Non-fatal: if this fails, the DB is still correct and the user's JWT will
+  // reflect the new status after their next session refresh (up to ~1hr delay).
+  try {
+    const { data: member } = await admin
+      .from("members")
+      .select("user_id")
+      .eq("org_id", orgId)
+      .eq("role", "owner")
+      .single();
+
+    if (member?.user_id) {
+      await admin.auth.admin.updateUserById(member.user_id, {
+        user_metadata: { stripe_subscription_status: update.stripe_subscription_status },
+      });
+    }
+  } catch {
+    // Non-fatal — don't let a metadata sync failure block the webhook response
+  }
 }
 
 export async function POST(request: NextRequest) {

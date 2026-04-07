@@ -64,52 +64,34 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Create the organization
-    const { data: org, error: orgError } = await supabase
-      .from("organizations")
-      .insert({ name: companyName || "My Company", created_by: user.id })
-      .select("id")
-      .single();
+    const name = companyName.trim() || "My Company";
 
-    if (orgError) {
-      setError("Something went wrong creating your organization. Please try again.");
-      setSaving(false);
-      return;
-    }
+    // Single atomic RPC call — creates the org, adds the user as owner, and
+    // upserts the profile in one database transaction. If any step fails,
+    // everything rolls back, so the user is never left with a broken partial state
+    // (e.g. an org with no membership, which would permanently lock them out).
+    const { data: orgId, error: rpcError } = await supabase.rpc("create_org_with_owner", {
+      p_user_id:      user.id,
+      p_email:        user.email ?? "",
+      p_company_name: name,
+      p_role:         role,
+      p_team_size:    teamSize,
+      p_channels:     channels,
+    });
 
-    // Add user as owner member
-    const { error: memberError } = await supabase
-      .from("members")
-      .insert({ org_id: org.id, user_id: user.id, email: user.email, role: "owner" });
-
-    if (memberError) {
+    if (rpcError) {
       setError("Something went wrong setting up your account. Please try again.");
       setSaving(false);
       return;
     }
 
-    // Upsert profile row
-    const { error: profileError } = await supabase.from("profiles").upsert({
-      id: user.id,
-      company_name: companyName || "My Company",
-      role,
-      team_size: teamSize,
-      marketing_channels: channels,
-      onboarding_completed: true,
-    });
-
-    if (profileError) {
-      setError("Something went wrong saving your profile. Please try again.");
-      setSaving(false);
-      return;
-    }
-
-    // Mark onboarding complete in auth metadata so the proxy can read it
+    // Store onboarding state in auth metadata so proxy.ts can gate access
+    // without a DB round-trip on every request.
     await supabase.auth.updateUser({
       data: {
         onboarding_completed: true,
-        company_name: companyName || "My Company",
-        org_id: org.id,
+        company_name: name,
+        org_id: orgId,
       },
     });
 

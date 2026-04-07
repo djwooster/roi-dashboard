@@ -73,28 +73,25 @@ export async function proxy(request: NextRequest) {
   // Billing enforcement — redirect to /billing if subscription is inactive.
   // Enable by setting BILLING_ENFORCEMENT=true in env vars at launch.
   // /billing itself is always accessible so users can subscribe.
+  //
+  // Why we read from user_metadata instead of querying the DB:
+  // The proxy runs on every request, so a DB query here would add a round-trip
+  // to every page load for every user. Instead, we cache the subscription status
+  // in the user's auth metadata (updated by the Stripe webhook handler whenever
+  // the subscription changes). This trades up to ~1hr of staleness (JWT refresh
+  // interval) for zero extra DB calls — acceptable for billing enforcement.
   if (
     process.env.BILLING_ENFORCEMENT === "true" &&
     user &&
-    pathname.startsWith("/dashboard") &&
-    pathname !== "/billing"
+    pathname.startsWith("/dashboard")
   ) {
-    const orgId = user.user_metadata?.org_id;
-    if (orgId) {
-      const { data: org } = await supabase
-        .from("organizations")
-        .select("stripe_subscription_status")
-        .eq("id", orgId)
-        .single();
+    const status = user.user_metadata?.stripe_subscription_status;
+    const active = status === "active" || status === "trialing";
 
-      const active = org?.stripe_subscription_status === "active" ||
-        org?.stripe_subscription_status === "trialing";
-
-      if (!active) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/billing";
-        return NextResponse.redirect(url);
-      }
+    if (!active) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/billing";
+      return NextResponse.redirect(url);
     }
   }
 
