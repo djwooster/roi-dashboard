@@ -14,7 +14,7 @@
 - **Stripe reliability** — customer ID validated before reuse (handles test→live mode switch), DB failures return 500 for retry
 - **Onboarding** — `create_org_with_owner` RPC wraps org + member + profile in a single transaction (no more race condition)
 - **Auth** — login, signup, forgot password, reset password, PKCE callback
-- **Shareable report page** — `/report/[token]`, public, live GHL data, mobile-first, agency + client name, funnel leaderboard, AI summary placeholder
+- **Shareable report page** — `/report/[token]`, public, live GHL data, mobile-first, agency + client name, funnel leaderboard, AI summary (cached 24h)
 - **Shared GHL utilities** — `lib/ghl/types.ts`, `lib/ghl/api.ts`, `lib/ghl/fetchLocationData.ts` (used by both sync route and report page)
 - **Demo mode** — `/demo` always works as marketing tool, mock data paths preserved in all components
 - **Billing enforcement** — `proxy.ts` reads subscription status from JWT metadata (no DB round-trip per request)
@@ -94,6 +94,9 @@ File to update: `app/api/integrations/[provider]/callback/route.ts`
 ### Stripe `Invoice` type cast
 `app/api/webhooks/stripe/route.ts` uses `Stripe.Invoice & { subscription?: string | null }` due to an SDK type mismatch in API version `2025-03-31.basil`. Revisit when SDK types stabilise.
 
+### Report page: use metrics cache
+`/report/[token]` still calls `fetchLocationData` live on every visit. Wire it to the `metrics` cache (same pattern as `/api/ghl/sync`) for `period_label = 'all_time'` before falling back to live GHL. Reduces load time + GHL API pressure for shared client reports.
+
 ### Vercel Pro: restore hourly background sync
 Currently on Hobby plan — cron is limited to once daily (6am UTC, `vercel.json`).
 When upgrading to Pro:
@@ -110,7 +113,6 @@ Add a pre-push git hook: `npm run build` must pass before push.
 
 ### Before 50 customers
 - **Sentry** — `npm install @sentry/nextjs`, run `npx @sentry/wizard`, set `SENTRY_DSN`
-- **Background sync** (see #4 above) — also unblocks date range + trends
 - **Error monitoring** — no visibility into production failures without Sentry
 
 ### Before 100+ customers

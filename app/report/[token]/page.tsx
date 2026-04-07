@@ -11,6 +11,9 @@ import type { GHLPipelineData, GHLSyncResponse } from "@/lib/ghl/types";
 // shows live data, so they never need to resend it.
 export const dynamic = "force-dynamic";
 
+// Module-level so it's not reallocated on every request.
+const SUMMARY_TTL_MS = 24 * 60 * 60 * 1000;
+
 // ── Subcomponents ─────────────────────────────────────────────────────────────
 
 function LiveDot() {
@@ -176,7 +179,6 @@ export default async function ReportPage({
   let summarySections: SummarySection[] | null = null;
 
   if (data && process.env.ANTHROPIC_API_KEY) {
-    const SUMMARY_TTL_MS = 24 * 60 * 60 * 1000;
     const generatedAt = report.summary_generated_at
       ? new Date(report.summary_generated_at).getTime()
       : 0;

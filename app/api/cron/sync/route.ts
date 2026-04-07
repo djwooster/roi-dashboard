@@ -62,23 +62,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ synced: 0, message: "No active GHL integrations" });
   }
 
+  // Fetch all locations for all orgs in one query, then group by org_id.
+  // Avoids the N+1 pattern of querying ghl_locations once per integration.
+  const orgIds = integrations.map((i) => i.org_id);
+  const { data: allLocs } = await admin
+    .from("ghl_locations")
+    .select("org_id, location_id")
+    .in("org_id", orgIds);
+
+  const locsByOrg = (allLocs ?? []).reduce<Record<string, string[]>>((acc, l) => {
+    (acc[l.org_id] ??= []).push(l.location_id);
+    return acc;
+  }, {});
+
   let totalSynced = 0;
   const errors: string[] = [];
 
   for (const integration of integrations) {
     const { org_id, provider_user_id } = integration;
 
-    // Resolve the list of locations for this org.
     // Agency accounts have rows in ghl_locations; single-location accounts fall
     // back to provider_user_id (the GHL location ID stored at OAuth time).
-    const { data: locs } = await admin
-      .from("ghl_locations")
-      .select("location_id")
-      .eq("org_id", org_id);
-
     const locationIds: string[] =
-      locs && locs.length > 0
-        ? locs.map((l) => l.location_id)
+      locsByOrg[org_id]?.length > 0
+        ? locsByOrg[org_id]
         : provider_user_id
         ? [provider_user_id]
         : [];
