@@ -24,65 +24,37 @@
 
 ## Active / Next Up
 
-### 1. GHL Agency OAuth (highest priority — primary audience unlock)
-Currently connects at location level (single sub-account). Agencies need company-level access.
+### 1. ✅ GHL Agency OAuth
+Company-level scopes, `ghl_locations` table, `lib/ghl/syncLocations.ts`. Token response `companyId` stored as `provider_user_id`; locations synced after connect. Single-location accounts unaffected (backward compatible).
 
-**What changes:**
-- Update `lib/oauth-config.ts` GHL scopes to request company-level / agency access
-- After connect, call `GET /locations/?companyId={id}` to list all sub-accounts
-- Store sub-accounts in a new `ghl_locations` table: `org_id`, `location_id`, `location_name`, `company_id`
-- `getValidGHLToken` will need to work per-location (each location may have its own token under agency OAuth)
+### 2. ✅ Client Switcher
+`ClientSwitcher.tsx` — searchable dropdown in dashboard header, reads `ghl_locations`, hidden when < 2 locations.
 
-**Why this matters:** Without this, an agency with 40 clients must connect each one individually — not viable.
+### 3. ✅ Date Range Picker (partial)
+`DateRangePicker.tsx` — preset selector wired to `/api/ghl/sync?from=&to=`. Filters live GHL opportunity data. Full historical filtering requires background sync (#4).
 
-### 2. Client Switcher (depends on #1)
-Vercel-style searchable dropdown in the dashboard header to switch between client locations.
+### 4. Report page: per-client URL (depends on #1)
+Change `reports` unique constraint from `org_id` to `(org_id, location_id)`. Wire "Share Link" button to current location in switcher.
 
-**Pattern:** `[Client Name ▾]` → dropdown opens, search auto-focuses, scrollable list, active item highlighted.
-
-**Implementation:**
-- New `ClientSwitcher.tsx` component in dashboard header
-- Reads from `ghl_locations` table (populated after agency OAuth)
-- `currentLocationId` state in dashboard; passed to KPIBar, SourceTable, PipelineFunnel, ExportMenu
-- Each data fetch parameterised by `locationId` instead of always reading from `integrations.provider_user_id`
-- If only one location: show location name as plain text (no dropdown)
-
-### 3. Report page: per-client URL (depends on #1)
-Currently one report per org. After agency OAuth, one report per location.
-
-- `reports` table already has `location_id` — just needs to support one row per location (change unique constraint from `org_id` to `org_id, location_id`)
-- "Share Report" button scoped to the currently selected client in the switcher
-
-### 4. Background Sync (unlocks date range + trends)
-Every dashboard/report load currently hits GHL live. At scale this hits rate limits.
+### 5. Background Sync — **next priority**
+Every dashboard/report load currently hits GHL live — rate limit risk at scale, and blocks accurate historical date filtering.
 
 - New `metrics` table: `org_id`, `location_id`, `provider`, `period_start`, `period_end`, `data` (jsonb)
-- Vercel Cron job (`/api/cron/sync`) — runs hourly, syncs all active integrations, writes to `metrics`
-- Dashboard and report page read from `metrics` instead of live API calls
-- Enables: date range picker, week-over-week trend arrows, historical sparklines
+- Vercel Cron job (`/api/cron/sync`) — runs hourly, loops all active integrations, writes to `metrics`
+- Dashboard + report page read from `metrics` instead of live calls
+- Date picker then queries `metrics` by date range (accurate historical data, not just current pipeline state)
+- Enables: week-over-week trend arrows, sparklines, fast report page loads
 
-### 5. AI Summary on Report Page (Anthropic API)
-Architecture is scaffolded — `AISummaryPlaceholder` is in place.
+### 6. AI Summary on Report Page (Anthropic API)
+`AISummaryPlaceholder` already scaffolded in the report page.
 
-- Add `ANTHROPIC_API_KEY` to Vercel env vars
-- Create `lib/ai/generateReportSummary.ts` — takes `GHLSyncResponse`, returns 3–4 sentence plain-English summary
-- Use `claude-haiku-4-5` for speed/cost (summary task, not analysis)
-- Cache the summary in the `reports` table (`ai_summary text`, `summary_generated_at timestamptz`)
-- Regenerate if summary is older than 24hrs or data has materially changed
+- Create `lib/ai/generateReportSummary.ts` — takes `GHLSyncResponse`, returns 3–4 sentence summary
+- Use `claude-haiku-4-5` for speed/cost
+- Cache in `reports` table (`ai_summary text`, `summary_generated_at timestamptz`); regenerate if >24hrs old
 
-### 6. Date Range Picker (depends on #4)
-Removed earlier because the picker wasn't wired to real data.
-
-- Re-add `DateRangePicker` to `dashboard/page.tsx`
-- Pass selected range to `fetchLocationData` (or query `metrics` table by date range)
-- Report page: allow date range in the URL (`/report/[token]?from=2026-03-01&to=2026-03-31`)
-
-### 7. Week-over-Week Trend Data (depends on #4)
-Agencies report to clients monthly and need to show growth, not just snapshots.
-
-- Add delta + direction arrow to KPIBar values: "84 contacts ↑ 23% vs last month"
-- Sparkline charts on the report page per-client drill-down
-- Computed from `metrics` table: compare current period vs prior period
+### 7. Week-over-Week Trend Data (depends on #5)
+- Delta + direction arrow on KPIBar values: "84 contacts ↑ 23% vs last month"
+- Computed from `metrics` table: current period vs prior period
 
 ---
 
