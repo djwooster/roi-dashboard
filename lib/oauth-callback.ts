@@ -75,7 +75,11 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
     const val = tokens[config.tokenResponseIdField];
     providerUserId = typeof val === "string" ? val : null;
   } else if (config.userIdUrl) {
-    const userRes = await fetch(`${config.userIdUrl}?access_token=${tokens.access_token}`);
+    // Use Authorization header rather than a query param — tokens in URLs
+    // show up in server logs and browser history, which is a minor security risk.
+    const userRes = await fetch(config.userIdUrl, {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
     if (userRes.ok) {
       const userData = await userRes.json() as { id?: string };
       providerUserId = userData.id ?? null;

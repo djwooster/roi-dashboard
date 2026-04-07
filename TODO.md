@@ -1,130 +1,104 @@
 # SourceIQ — Implementation TODOs
 
-## GHL Integration
+---
 
-### What's already built
-- `/api/integrations/ghl/connect` — builds OAuth URL, sets CSRF nonce cookie
-- `/api/integrations/crm/callback` — GHL alias route (GHL blocks "ghl" in redirect URIs)
-- `lib/oauth-callback.ts` — shared OAuth callback logic used by all providers
-- `lib/oauth-config.ts` — GHL entry with `tokenResponseIdField: "locationId"` (extracted from token response, no extra API call needed)
-- `/api/ghl/sync` — fetches contact count, open opportunities, closed revenue
-- `SourceTable` + `KPIBar` — GHL row wired with live data
-- Disconnect button — red button on integrations page, sets status to `inactive`
+## What's Built (complete)
 
-### What still needs to be done (setup)
-- [ ] Fully publish GHL app in marketplace.gohighlevel.com (add redirect URIs, scopes, hit Save/Publish)
-- [ ] Add `GHL_CLIENT_ID` + `GHL_CLIENT_SECRET` to Vercel env vars (do locally too)
-- [ ] Token refresh — GHL tokens expire; build `lib/ghl/getValidToken.ts` (same pattern as Meta token refresh below)
-
-### GHL Insights — making the data valuable
-Right now we show 3 numbers the user can already see in their GHL dashboard. The goal is to surface insights GHL doesn't show natively.
-
-#### 1. Pipeline stage funnel (highest priority)
-`PipelineFunnel.tsx` is already built with mock data + empty state — it just needs real data.
-GHL API calls needed:
-- `GET /pipelines/?locationId={id}` — fetch real pipeline stage names and IDs
-- `GET /opportunities/search?location_id={id}&pipeline_stage_id={stageId}` — count + value per stage
-- `GET /opportunities/search?location_id={id}&status=lost` — lost opps for Closed Lost bar
-
-Real data is now wired: `/api/ghl/sync` returns `pipeline` (first pipeline only — see note below).
-`PipelineFunnel.tsx` renders real stage names, counts, and conversion rates from live GHL data.
-
-**Multi-pipeline per client (needs update):**
-Agencies often run 1–3 separate pipelines per client, each representing a different offer (e.g. for a med spa: "1 Year Unlimited Laser Hair Removal" vs "3 Free Underarm Sessions"). Currently only the first pipeline is returned. 
-- Update `/api/ghl/sync` to return `pipelines: GHLPipelineData[]` (all pipelines, not just `[0]`)
-- Update `PipelineFunnel` to show a pipeline selector (tabs/dropdown) when multiple pipelines exist
-- If only one pipeline, no selector shown — single funnel displayed as now
-- In the agency multi-location view: show per-client, per-offer conversion rates so agencies can see which offer is performing best across all clients
-
-Insights unlocked (things GHL doesn't surface automatically):
-- Conversion rate between each stage (e.g. "42% of appointments become proposals")
-- Where in the funnel leads are dropping off
-- Which offer converts best for a given client
-
-#### 2. Close rate + average deal value
-Currently we fetch won opps but don't compute these. Add to `/api/ghl/sync`:
-- `closeRate`: won / (won + lost) as a percentage
-- `avgDealValue`: total won revenue / count of won opps
-
-Show in KPIBar or a dedicated GHL insights card. GHL shows this buried in reports — we surface it prominently.
-
-#### 3. Lead source breakdown
-GHL contacts have a `source` field (Facebook, Google, referral, manual, etc.).
-- `GET /contacts/?locationId={id}&limit=100` — fetch contacts with source field
-- Group by source, count per source, show which sources generate the most contacts
-- Eventually: cross-reference with Meta spend to show cost-per-GHL-contact by source
-
-This becomes the most powerful cross-platform insight: "Your Facebook Ads generated 47 GHL contacts this month. 12 became opportunities. 4 closed for $18,000."
-
-#### 4. New contacts this period (vs all time)
-We currently show total contacts — a vanity number. More useful: new contacts in the last 30 days.
-- `GET /contacts/?locationId={id}&startDate={30daysAgo}` — filter by date range
-- Show "X new contacts (30d)" in SourceTable instead of all-time total
-
-#### 5. Week-over-week / month-over-month trend data
-Agencies report to clients monthly and need to show growth, not just snapshots. "47 new contacts this month (↑ 23% vs last month)" is far more compelling than a raw number.
-- Requires background sync to be in place first (metrics stored with timestamps)
-- Add trend indicators (delta + direction arrow) to KPIBar values
-- Show sparkline charts on per-client drill-down views
-- This is one of the most powerful things agencies can put in front of clients
-
-#### 6. Agency multi-location view (high priority — primary audience)
-Agencies managing 40+ GHL clients need a single dashboard to see all clients at a glance, with drill-down per client.
-- Change GHL OAuth to request agency-level access (currently connects at location/sub-account level)
-- After connect, call `GET /locations/?companyId={id}` to list all sub-accounts; store in `integrations.metadata` or a `ghl_locations` table
-- UI: client overview table — one row per sub-account, showing pipeline value, close rate, new contacts
-- Client drill-down: clicking a client loads the full funnel + KPI view scoped to that `locationId`
-- This enables the **export feature**: per-client PDF/CSV report (agencies use this to report to their clients)
-- Also enables "which funnel is performing best?" — compare close rate, appointment conversion, and pipeline velocity across all client locations
-- Key agency insight: appointment conversion rate per client (leads → "Appointment Set" stage) — tells the agency where to keep spending and which clients need attention
-- Spending guidance: cross-reference with lead source so agencies see "Facebook → 38 leads → 19 appts → 6 closed" per client
-
-Implementation notes:
-- All GHL API calls are already `locationId`-parameterized — multi-location is additive, not a rewrite
-- Start with single-location funnel (current plan), then layer agency view on top
-- Key metric for multi-location table: appointment conversion % (count at "Appointment Set"-equivalent stage / total leads) — derive from pipeline stages, no separate Calendar API needed if agencies use pipeline stages for appointments
-- Export format: likely a printable/shareable summary card per client (name, key KPIs, funnel snapshot)
-
-#### 7. Export feature (tied to agency multi-location view)
-Agencies need to quickly generate client-facing reports. Not a spreadsheet dump — a clean summary they can send.
-- Per-client report: logo, date range, KPI highlights, pipeline funnel snapshot
-- Format options: PDF (print/email) or shareable link (public URL with read-only view)
-- Trigger: "Export Report" button on each client's drill-down view
-
-#### 8. Cross-platform attribution (longer term — requires both Meta + GHL connected)
-The real differentiator. When a user has both Meta and GHL connected:
-- GHL contacts with `source = "facebook"` or UTM params matching Meta campaigns
-- Calculate: Meta spend → GHL contacts → GHL opportunities → closed revenue
-- Show full funnel: "Facebook Ads: $2,400 spend → 38 GHL leads → 9 opps → 3 closed → $12,000 revenue"
-- GHL doesn't show this. Meta doesn't show this. Only SourceIQ does.
-- Implementation: match on UTM source/campaign fields stored on GHL contacts
+- **GHL OAuth** — connect, callback (`/crm/callback` alias — GHL blocks "ghl" in redirect URIs), disconnect
+- **GHL sync** — contacts, open opps, closed revenue, per-pipeline won/lost/revenue, close rate, avg deal value
+- **GHL token refresh** — `lib/ghl/getValidToken.ts` proactively refreshes before expiry, marks integration inactive on failure
+- **GHL pipeline funnel** — `PipelineFunnel.tsx` with real stage data, multi-pipeline tab selector
+- **Meta OAuth** — connect, callback, disconnect (short-lived token stored — long-lived exchange still needed)
+- **Meta insights** — ad spend, leads, revenue via `/api/meta/insights`
+- **Stripe billing** — checkout, customer portal, webhook (all 4 lifecycle events), billing page, settings tab
+- **Stripe reliability** — customer ID validated before reuse (handles test→live mode switch), DB failures return 500 for retry
+- **Onboarding** — `create_org_with_owner` RPC wraps org + member + profile in a single transaction (no more race condition)
+- **Auth** — login, signup, forgot password, reset password, PKCE callback
+- **Shareable report page** — `/report/[token]`, public, live GHL data, mobile-first, agency + client name, funnel leaderboard, AI summary placeholder
+- **Shared GHL utilities** — `lib/ghl/types.ts`, `lib/ghl/api.ts`, `lib/ghl/fetchLocationData.ts` (used by both sync route and report page)
+- **Demo mode** — `/demo` always works as marketing tool, mock data paths preserved in all components
+- **Billing enforcement** — `proxy.ts` reads subscription status from JWT metadata (no DB round-trip per request)
+- **Code comments** — all new files commented with why-not-what for contract developers
 
 ---
 
-## Meta Business Login OAuth Flow
+## Active / Next Up
 
-### What's already in place
-- `/api/integrations/facebook/connect` + `/api/integrations/facebook/callback`
-- `integrations` table stores token, scoped to org
-- `lib/oauth-config.ts` — scopes: `ads_read`, `ads_management`, `leads_retrieval` (`read_insights` removed — deprecated)
-- App domain + redirect URI registered in Meta for Developers portal
-- `/api/meta/insights` — fetches ad account spend, leads, revenue
+### 1. GHL Agency OAuth (highest priority — primary audience unlock)
+Currently connects at location level (single sub-account). Agencies need company-level access.
 
-### What still needs to be done
+**What changes:**
+- Update `lib/oauth-config.ts` GHL scopes to request company-level / agency access
+- After connect, call `GET /locations/?companyId={id}` to list all sub-accounts
+- Store sub-accounts in a new `ghl_locations` table: `org_id`, `location_id`, `location_name`, `company_id`
+- `getValidGHLToken` will need to work per-location (each location may have its own token under agency OAuth)
 
-#### 0. Enter these URLs in Meta for Developers dashboard
-- **Settings → Advanced → Data Deletion Requests**
-  - Callback URL: `https://sourceiq.app/webhooks/meta/data-deletion`
-  - Status URL: `https://sourceiq.app/webhooks/meta/data-deletion?id={confirmation_code}`
+**Why this matters:** Without this, an agency with 40 clients must connect each one individually — not viable.
 
-#### 1. Meta App Review — BLOCKER for real customers
-Facebook app is unpublished — only the developer account can connect.
-- Submit for App Review at developers.facebook.com (requires screencast demo)
+### 2. Client Switcher (depends on #1)
+Vercel-style searchable dropdown in the dashboard header to switch between client locations.
+
+**Pattern:** `[Client Name ▾]` → dropdown opens, search auto-focuses, scrollable list, active item highlighted.
+
+**Implementation:**
+- New `ClientSwitcher.tsx` component in dashboard header
+- Reads from `ghl_locations` table (populated after agency OAuth)
+- `currentLocationId` state in dashboard; passed to KPIBar, SourceTable, PipelineFunnel, ExportMenu
+- Each data fetch parameterised by `locationId` instead of always reading from `integrations.provider_user_id`
+- If only one location: show location name as plain text (no dropdown)
+
+### 3. Report page: per-client URL (depends on #1)
+Currently one report per org. After agency OAuth, one report per location.
+
+- `reports` table already has `location_id` — just needs to support one row per location (change unique constraint from `org_id` to `org_id, location_id`)
+- "Share Report" button scoped to the currently selected client in the switcher
+
+### 4. Background Sync (unlocks date range + trends)
+Every dashboard/report load currently hits GHL live. At scale this hits rate limits.
+
+- New `metrics` table: `org_id`, `location_id`, `provider`, `period_start`, `period_end`, `data` (jsonb)
+- Vercel Cron job (`/api/cron/sync`) — runs hourly, syncs all active integrations, writes to `metrics`
+- Dashboard and report page read from `metrics` instead of live API calls
+- Enables: date range picker, week-over-week trend arrows, historical sparklines
+
+### 5. AI Summary on Report Page (Anthropic API)
+Architecture is scaffolded — `AISummaryPlaceholder` is in place.
+
+- Add `ANTHROPIC_API_KEY` to Vercel env vars
+- Create `lib/ai/generateReportSummary.ts` — takes `GHLSyncResponse`, returns 3–4 sentence plain-English summary
+- Use `claude-haiku-4-5` for speed/cost (summary task, not analysis)
+- Cache the summary in the `reports` table (`ai_summary text`, `summary_generated_at timestamptz`)
+- Regenerate if summary is older than 24hrs or data has materially changed
+
+### 6. Date Range Picker (depends on #4)
+Removed earlier because the picker wasn't wired to real data.
+
+- Re-add `DateRangePicker` to `dashboard/page.tsx`
+- Pass selected range to `fetchLocationData` (or query `metrics` table by date range)
+- Report page: allow date range in the URL (`/report/[token]?from=2026-03-01&to=2026-03-31`)
+
+### 7. Week-over-Week Trend Data (depends on #4)
+Agencies report to clients monthly and need to show growth, not just snapshots.
+
+- Add delta + direction arrow to KPIBar values: "84 contacts ↑ 23% vs last month"
+- Sparkline charts on the report page per-client drill-down
+- Computed from `metrics` table: compare current period vs prior period
+
+---
+
+## Before First Paying Customer
+
+### GHL App Published
+- Fully publish in marketplace.gohighlevel.com — add redirect URIs, scopes, hit Save/Publish
+- Add `GHL_CLIENT_ID` + `GHL_CLIENT_SECRET` to Vercel env vars
+
+### Meta App Review — BLOCKER for real Meta customers
+- Submit at developers.facebook.com (requires screencast demo)
 - Request scopes: `ads_read`, `ads_management`, `leads_retrieval`
 - Plan 1–5 business days
 
-#### 2. Exchange for a long-lived token
-The callback stores the short-lived token (~1 hr). After exchanging the code, make a second call:
+### Meta Long-Lived Token Exchange
+The callback stores a short-lived token (~1hr). Exchange it for a 60-day token after OAuth:
 ```
 GET https://graph.facebook.com/v19.0/oauth/access_token
   ?grant_type=fb_exchange_token
@@ -132,140 +106,89 @@ GET https://graph.facebook.com/v19.0/oauth/access_token
   &client_secret={FACEBOOK_APP_SECRET}
   &fb_exchange_token={short_lived_token}
 ```
-Store the long-lived token + `token_expires_at`.
+Build `lib/meta/getValidToken.ts` (same pattern as `lib/ghl/getValidToken.ts`).
 File to update: `app/api/integrations/[provider]/callback/route.ts`
 
-#### 3. Token refresh before API calls
-Long-lived tokens expire after 60 days. Build `lib/meta/getValidToken.ts`:
-check `token_expires_at`, re-exchange if within 7 days of expiry.
-Call from `/api/meta/insights` before using the token.
+### Forgot Password Page ✓ (built)
+### Stripe Activate
+1. Create product + price in Stripe dashboard
+2. Add env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+3. Register webhook at `https://sourceiq.app/api/webhooks/stripe`
+4. Set `BILLING_ENFORCEMENT=true` when ready to charge
 
-#### 4. Account discovery after connect
-After OAuth, call `/me/adaccounts` and store discovered account IDs in a `metadata` jsonb column on `integrations`. Removes the `FOUNDER_ACCOUNT_ID` / `FOUNDER_BUSINESS_ID` env var fallback.
+### Meta Data Deletion Webhook
+- Settings → Advanced → Data Deletion Requests in Meta Developer portal
+- Callback URL: `https://sourceiq.app/webhooks/meta/data-deletion`
 
 ---
 
-## Code Quality / Technical Debt
+## Technical Debt (non-blocking)
 
-Small items identified during architecture audit — none are blockers but worth cleaning up before scaling.
+### Billing page price hardcoded
+`/billing/page.tsx` shows `$297 / month` as a string literal.
+- Option A: `NEXT_PUBLIC_PLAN_PRICE=297` env var
+- Option B: fetch from `stripe.prices.retrieve(STRIPE_PRICE_ID)` at build time
 
-#### Billing page price hardcoded
-`/billing/page.tsx` shows `$297 / month` as a string literal. If you change the price in Stripe, the page will show the wrong amount.
-- Option A (simple): move price to an env var `NEXT_PUBLIC_PLAN_PRICE=297`
-- Option B (proper): fetch the price from Stripe Products API at build time via `stripe.prices.retrieve(STRIPE_PRICE_ID)` and render it dynamically
+### Stripe `Invoice` type cast
+`app/api/webhooks/stripe/route.ts` uses `Stripe.Invoice & { subscription?: string | null }` due to an SDK type mismatch in API version `2025-03-31.basil`. Revisit when SDK types stabilise.
 
-#### Stripe `Invoice` type cast
-`app/api/webhooks/stripe/route.ts` uses `Stripe.Invoice & { subscription?: string | null }` to work around a type mismatch introduced by the `2025-03-31.basil` API version renaming fields. Works correctly but is a smell.
-- Revisit when Stripe SDK types stabilize for this API version
-- Or pin to an earlier stable API version that has `invoice.subscription` typed correctly
-
-#### `run npm run build` before every push
+### Pre-push build check
 Several consecutive deploys failed due to TypeScript errors caught only at build time.
-- Add a pre-push git hook or CI check: `npm run build` must pass before push
+Add a pre-push git hook: `npm run build` must pass before push.
 
 ---
 
 ## Scale Roadmap
 
-Priority order reflects what actually blocks revenue or customers.
-
-### Before first paying customer
-
-#### Stripe Billing — BUILT, needs env vars + Stripe dashboard setup
-- [x] `stripe` package installed
-- [x] `organizations` table: `stripe_customer_id`, `stripe_subscription_status`, `stripe_subscription_id`, `stripe_price_id`
-- [x] `/api/stripe/checkout` — creates Checkout session, reuses existing customer
-- [x] `/api/stripe/portal` — Customer Portal for managing billing from Settings
-- [x] `/api/webhooks/stripe` — handles `checkout.session.completed`, `subscription.updated`, `subscription.deleted`, `invoice.payment_failed`
-- [x] `/billing` — upgrade page with feature list + subscribe button
-- [x] `proxy.ts` — enforcement logic ready, gated behind `BILLING_ENFORCEMENT=true`
-
-**To activate billing:**
-1. Create a product + price in Stripe dashboard (or use test mode first)
-2. Add to Vercel env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-3. Register webhook endpoint in Stripe dashboard: `https://sourceiq.app/api/webhooks/stripe`
-   - Events to enable: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
-4. Set `BILLING_ENFORCEMENT=true` in Vercel env vars when ready to charge customers
-5. Add "Manage billing" button to SettingsPage that POSTs to `/api/stripe/portal`
-
-#### Forgot Password Page — BLOCKER
-`/forgot-password` link exists in the login form but the page doesn't exist.
-- Create `app/(auth)/forgot-password/page.tsx`
-- Call `supabase.auth.resetPasswordForEmail(email, { redirectTo: ... })`
-
-#### Affiliate Program
-Users get a unique referral link. If someone signs up via that link, the referrer earns 30% recurring commission on that user's subscription.
-- Add `referral_code` (unique, auto-generated) and `referred_by` (org_id of referrer) columns to `organizations`
-- Track referral at signup: read referral code from URL param, store `referred_by` on the new org
-- Integrate with Stripe: when a referred user's subscription invoice is paid, trigger a 30% payout to the referrer
-- Options for payout: Stripe Connect (recommended — automates payouts to referrer's bank) or manual payout tracking
-- Referral dashboard: show referrer how many signups they've driven and total commission earned
-- Landing page: shareable link format `https://sourceiq.app/?ref=THEIR_CODE`
-
----
-
 ### Before 50 customers
-
-#### Background Data Sync — performance & rate limits
-Every dashboard load currently hits Meta/GHL APIs directly. At 50 clients this will hit rate limits and be slow.
-- Create a `metrics` table in Supabase to cache synced data per org per provider
-- Set up a Vercel Cron job (or Supabase Edge Function) to sync all connected orgs hourly
-- Dashboard reads from `metrics` table, not live API calls
-- This also enables date range filtering (see below)
-
-#### Error Monitoring (Sentry)
-No visibility into production failures. ~5 minute setup.
-- `npm install @sentry/nextjs` and run `npx @sentry/wizard`
-- Set `SENTRY_DSN` in Vercel env vars
-
-#### Fix Onboarding Race Condition
-In `app/onboarding/page.tsx:68-89`, if the org insert succeeds but the member insert fails,
-the user has an org with no membership and is permanently locked out.
-- Wrap both inserts in a Supabase RPC function (database transaction) so they're atomic
-- Replace the two separate `.insert()` calls with a single `supabase.rpc("create_org_with_owner", {...})`
-
----
+- **Sentry** — `npm install @sentry/nextjs`, run `npx @sentry/wizard`, set `SENTRY_DSN`
+- **Background sync** (see #4 above) — also unblocks date range + trends
+- **Error monitoring** — no visibility into production failures without Sentry
 
 ### Before 100+ customers
-
-#### Date Range Filtering
-The picker was removed because it wasn't wired to live data. Once background sync stores
-data in a `metrics` table with timestamps, this becomes straightforward.
-- Re-add `DateRangePicker` to `dashboard/page.tsx`
-- Pass selected range to KPIBar, SourceTable — they query `metrics` filtered by date
-
-#### Plan Tier Enforcement
-If multiple pricing tiers exist (e.g., 3 integrations vs. unlimited), enforce at the DB or middleware level.
-- Add `plan` column to `organizations`
-- Check plan limits in `proxy.ts` or API routes before allowing additional integrations
-
-#### Team Invites UI
-`invites` table exists in the DB schema but there's no UI to send or accept invitations.
-- Build invite flow in SettingsPage
-- Accept route: `app/api/invites/[token]/route.ts`
+- **Plan tier enforcement** — `plan` column on `organizations`, check limits in `proxy.ts`
+- **Team Invites UI** — `invites` table exists, no UI yet. Build invite flow in SettingsPage + `app/api/invites/[token]/route.ts`
 
 ---
 
-### Remaining Integrations
+## Remaining Integrations
 
-#### Google Ads
-`lib/oauth-config.ts` already has Google configured.
-- Register app in Google Cloud Console, get CLIENT_ID + CLIENT_SECRET
-- Add `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` to Vercel env vars
+### Google Ads
+`lib/oauth-config.ts` already configured.
+- Register in Google Cloud Console, get CLIENT_ID + CLIENT_SECRET
 - Build `/api/google/insights/route.ts`
 - Wire Google row in SourceTable
 
-#### HubSpot
-- Register app at developers.hubspot.com
+### HubSpot
+- Register at developers.hubspot.com
 - Build `/api/hubspot/sync/route.ts`
-- Wire HubSpot row in SourceTable
 
-#### Salesforce
+### Salesforce
 - Register connected app in Salesforce Setup
 - Build `/api/salesforce/sync/route.ts`
-- Wire Salesforce row in SourceTable
 
-#### Jobber
-- Register app at developer.getjobber.com
+### Jobber
+- Register at developer.getjobber.com
 - Build `/api/jobber/sync/route.ts`
-- Wire Jobber row in SourceTable
+
+---
+
+## Longer-Term Vision
+
+### Affiliate Program
+- `referral_code` (unique, auto-generated) + `referred_by` (org_id) on `organizations`
+- Track at signup via URL param
+- Stripe Connect for 30% recurring commission payouts
+- Referral dashboard: signups driven + commission earned
+
+### Cross-Platform Attribution (requires Meta + GHL both connected)
+The primary differentiator. GHL contacts with `source = "facebook"` matched to Meta campaigns.
+- Show: "Facebook Ads: $2,400 spend → 38 GHL leads → 9 opps → 3 closed → $12,000 revenue"
+- Match on UTM source/campaign fields stored on GHL contacts
+- Neither GHL nor Meta shows this. Only SourceIQ does.
+
+### Export Feature (tied to agency multi-location)
+Per-client PDF or shareable summary card for agency client reporting.
+- Trigger: "Export Report" button on client drill-down
+- Format: clean summary (logo, date range, KPI highlights, funnel snapshot)
+- The shareable link (`/report/[token]`) is already built — PDF is the next step
