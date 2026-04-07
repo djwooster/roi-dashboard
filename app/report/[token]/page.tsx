@@ -197,13 +197,21 @@ export default async function ReportPage({
       // doesn't affect what the user sees.
       try {
         summarySections = await generateReportSummary(data, report.location_name ?? "Client");
-        void admin
-          .from("reports")
-          .update({
-            ai_summary: JSON.stringify(summarySections),
-            summary_generated_at: new Date().toISOString(),
-          })
-          .eq("token", token);
+        // Fire-and-forget cache write. Supabase's query builder is lazy — it only
+        // executes on .then(), so we must trigger it explicitly without awaiting.
+        (async () => {
+          try {
+            await admin
+              .from("reports")
+              .update({
+                ai_summary: JSON.stringify(summarySections),
+                summary_generated_at: new Date().toISOString(),
+              })
+              .eq("token", token);
+          } catch {
+            // Cache write failure is non-fatal — next visit will regenerate
+          }
+        })();
       } catch {
         // Generation failed — summarySections stays null, placeholder renders
       }

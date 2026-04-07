@@ -32,7 +32,7 @@ Keep this updated when adding routes, components, or lib files.
 | `/demo` | none | Marketing demo — Dashboard wrapped in `DemoContext.Provider`. Always uses mock data. |
 | `/dashboard` | user + onboarding | Main app. Loads `ghl_locations` on mount, resolves active location, fetches GHL + Meta. Header has ClientSwitcher + DateRangePicker. |
 | `/onboarding` | user | Org setup form. Calls `create_org_with_owner` RPC (atomic — org + member + profile in one transaction). |
-| `/report/[token]` | none (token = auth) | Public client report. Looks up report by token, fetches live GHL data via `fetchLocationData`. Mobile-first. |
+| `/report/[token]` | none (token = auth) | Public client report. Fetches live GHL data + AI summary (cached 24h in `reports.ai_summary`). Mobile-first. |
 | `/billing` | user | Upgrade page. Posts to `/api/stripe/checkout`. Shows current subscription status. |
 | `/login` | none | Email + password login. Hard-navigates to `/dashboard` on success. |
 | `/signup` | none | Email + password signup. Hard-navigates to `/onboarding` on success. |
@@ -77,12 +77,12 @@ Keep this updated when adding routes, components, or lib files.
 | `components/SettingsPage.tsx` | Settings tabs: account, team, integrations, billing. Billing tab handles subscribe + manage billing. |
 | `components/IntegrationsPage.tsx` | Connect/disconnect integrations UI. Reads `integrations` table client-side for status. |
 | `components/ClientSwitcher.tsx` | Agency client switcher. Searchable dropdown listing `ghl_locations`. Hidden when < 2 locations. Sits in dashboard header between title and date picker. |
-| `components/DateRangePicker.tsx` | Preset date range selector (All time / Today / 7D / 30D / 90D). Passes ISO date strings to the GHL sync route as `?from=&to=`. |
+| `components/DateRangePicker.tsx` | Preset date range selector (All time / Today / 7D / 30D / 90D). Passes `?from=`, `?to=`, and `?period=` (cache key) to the GHL sync route. |
 | `components/Sidebar.tsx` | Left nav. Demo mode: logout suppressed (clicking does nothing). |
 | `components/SourceDrawer.tsx` | Right slide-in drawer for source drill-down. Demo only for now — `onSelectSource` not passed in real mode. |
-| `components/TrendChart.tsx` | Trend sparkline chart. Demo only until background sync exists. |
-| `components/RevenueChart.tsx` | Revenue bar chart. Demo only until background sync exists. |
-| `components/CampaignTables.tsx` | Campaign breakdown tables. Demo only until background sync exists. |
+| `components/TrendChart.tsx` | Trend sparkline chart. Demo only — needs week-over-week data from `metrics` (TODO #7). |
+| `components/RevenueChart.tsx` | Revenue bar chart. Demo only — needs time-series data from `metrics` (TODO #7). |
+| `components/CampaignTables.tsx` | Campaign breakdown tables. Demo only — needs time-series data from `metrics` (TODO #7). |
 | `components/LiveTicker.tsx` | Animated ticker at top of dashboard. |
 | `components/landing/` | Landing page components (Hero, Nav, PricingSection, etc.). |
 

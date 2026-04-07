@@ -78,6 +78,19 @@ function ShareLinkButton({ onToast }: { onToast: (msg: string) => void }) {
   );
 }
 
+// Maps a DateRange label to the period_label stored in the metrics table.
+// Module-level (not inside the component) so it's not redefined on every render.
+function toPeriodLabel(range: DateRange): string {
+  if (!range) return "all_time";
+  switch (range.label) {
+    case "Today":        return "today";
+    case "Last 7 days":  return "7d";
+    case "Last 30 days": return "30d";
+    case "Last 90 days": return "90d";
+    default:             return "all_time";
+  }
+}
+
 // ── Main dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState<string>("overview");
@@ -113,20 +126,6 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange>({ label: "Last 30 days", from: (() => {
     const d = new Date(); d.setDate(d.getDate() - 29); return d.toISOString().slice(0, 10);
   })(), to: new Date().toISOString().slice(0, 10) });
-
-  // Maps a DateRange label to the period_label stored in the metrics table.
-  // The cron job pre-syncs these five windows hourly — passing the label lets
-  // the sync route serve from cache without a live GHL call.
-  function toPeriodLabel(range: DateRange): string {
-    if (!range) return "all_time"; // null = "All time"
-    switch (range.label) {
-      case "Today":        return "today";
-      case "Last 7 days":  return "7d";
-      case "Last 30 days": return "30d";
-      case "Last 90 days": return "90d";
-      default:             return "all_time";
-    }
-  }
 
   // Fetch GHL data for the given location + date range.
   // Extracted into a callback so it can be called both on mount and on switcher/picker change.

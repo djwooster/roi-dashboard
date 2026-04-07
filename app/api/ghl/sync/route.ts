@@ -11,6 +11,10 @@ export type { GHLPipelineStage, GHLPipelineData, GHLSyncResponse } from "@/lib/g
 // The cron runs hourly, so 2 hours gives one missed run worth of headroom.
 const CACHE_STALE_MS = 2 * 60 * 60 * 1000;
 
+// Period labels the cron pre-syncs — used to gate cache lookups.
+// Defined at module scope so it's not reallocated on every request.
+const KNOWN_PERIODS = new Set(["all_time", "today", "7d", "30d", "90d"]);
+
 // GET /api/ghl/sync?locationId={id}&period={label}&from={iso}&to={iso}
 // Returns KPI and pipeline data for the requested GHL location.
 // Called by the dashboard on mount (and on client switch / date range change).
@@ -69,7 +73,6 @@ export async function GET(request: NextRequest) {
   // metrics row before hitting the GHL API. This prevents unnecessary GHL calls
   // and guards against rate limits as the customer base grows.
   const period = request.nextUrl.searchParams.get("period");
-  const KNOWN_PERIODS = new Set(["all_time", "today", "7d", "30d", "90d"]);
 
   if (period && KNOWN_PERIODS.has(period)) {
     const { data: cached } = await supabase
