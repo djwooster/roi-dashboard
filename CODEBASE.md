@@ -61,6 +61,7 @@ Keep this updated when adding routes, components, or lib files.
 | `lib/supabase/client.ts` | Browser Supabase client (anon key). Use in `"use client"` components. |
 | `lib/supabase/server.ts` | Server Supabase client (cookie-based SSR). Use in route handlers + server components. |
 | `lib/supabase/admin.ts` | Admin Supabase client (service role — bypasses RLS). Use only in webhooks and server-side utility functions. Never expose to browser. |
+| `lib/ai/generateReportSummary.ts` | Calls `claude-haiku-4-5` via Anthropic SDK. Takes `GHLSyncResponse` + location name, returns up to 5 `{ heading, body }` sections. Used by the report page. |
 | `lib/demo-context.ts` | `DemoContext` + `useDemoMode()` hook. Components branch on this: demo → mock data, real → live data or `"—"`. |
 | `lib/mock-data.ts` | Mock data for the `/demo` page. Never remove — `/demo` must always work as a marketing tool. |
 

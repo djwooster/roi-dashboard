@@ -39,12 +39,8 @@ Change `reports` unique constraint from `org_id` to `(org_id, location_id)`. Wir
 ### 5. ✅ Background Sync
 `metrics` table (Supabase), Vercel Cron at `/api/cron/sync` (hourly), dashboard passes `?period=` to `/api/ghl/sync` which serves from cache (< 2h) before falling back to live GHL. Pre-syncs all 5 preset windows (all_time / today / 7d / 30d / 90d) per location per org. Add `CRON_SECRET` env var in Vercel.
 
-### 6. AI Summary on Report Page (Anthropic API)
-`AISummaryPlaceholder` already scaffolded in the report page.
-
-- Create `lib/ai/generateReportSummary.ts` — takes `GHLSyncResponse`, returns 3–4 sentence summary
-- Use `claude-haiku-4-5` for speed/cost
-- Cache in `reports` table (`ai_summary text`, `summary_generated_at timestamptz`); regenerate if >24hrs old
+### 6. ✅ AI Summary on Report Page
+`lib/ai/generateReportSummary.ts` — `claude-haiku-4-5`, structured JSON output (up to 5 `{ heading, body }` sections). Cached in `reports.ai_summary` (24h TTL). Gracefully falls back to placeholder if `ANTHROPIC_API_KEY` is absent or generation fails.
 
 ### 7. Week-over-Week Trend Data (depends on #5)
 - Delta + direction arrow on KPIBar values: "84 contacts ↑ 23% vs last month"
