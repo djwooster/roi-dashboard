@@ -69,6 +69,19 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Framer Motion
 - `ease` must be typed as a tuple: `const EASE: [number, number, number, number] = [0.25, 0.1, 0.25, 1]`
 
+## Code Comments
+Every file should be commented as if a contract developer is reading it for the first time.
+Comments should explain **why** decisions were made, not just what the code does.
+
+Good comment targets:
+- Why a specific client (admin vs user-scoped) is used
+- Why a workaround or non-obvious pattern exists (e.g. the `emailRedirectTo` proxy workaround)
+- Why an event or status maps the way it does
+- Why something is outside a try/catch (or inside one)
+- Any Stripe, Supabase, or Next.js quirk that isn't obvious from the docs
+
+When touching an existing file that lacks comments, add them — don't leave it uncommented just because it wasn't written that way originally.
+
 ## Reference Files
 - `TODO.md` — implementation task list with context on what's built vs. pending
 - `.env.example` — all required environment variables with descriptions

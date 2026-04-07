@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getValidGHLToken } from "@/lib/ghl/getValidToken";
 
 const GHL_API = "https://services.leadconnectorhq.com";
 const GHL_VERSION = "2021-07-28";
@@ -52,7 +53,7 @@ export async function GET() {
 
   const { data: integration } = await supabase
     .from("integrations")
-    .select("access_token, provider_user_id")
+    .select("provider_user_id")
     .eq("org_id", orgId)
     .eq("provider", "ghl")
     .eq("status", "active")
@@ -62,10 +63,21 @@ export async function GET() {
     return NextResponse.json({ error: "GHL not connected" }, { status: 404 });
   }
 
-  const { access_token: token, provider_user_id: locationId } = integration;
+  const locationId = integration.provider_user_id;
 
   if (!locationId) {
     return NextResponse.json({ error: "No GHL location ID stored" }, { status: 400 });
+  }
+
+  // Get a valid token — refreshes automatically if expired or expiring soon.
+  // If the refresh fails (e.g. the user revoked access in GHL), this throws and
+  // the integration is marked inactive so the dashboard prompts reconnection.
+  let token: string;
+  try {
+    token = await getValidGHLToken(orgId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "GHL token unavailable";
+    return NextResponse.json({ error: message }, { status: 401 });
   }
 
   try {

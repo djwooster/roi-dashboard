@@ -61,7 +61,14 @@ We currently show total contacts — a vanity number. More useful: new contacts 
 - `GET /contacts/?locationId={id}&startDate={30daysAgo}` — filter by date range
 - Show "X new contacts (30d)" in SourceTable instead of all-time total
 
-#### 5. Agency multi-location view (high priority — primary audience)
+#### 5. Week-over-week / month-over-month trend data
+Agencies report to clients monthly and need to show growth, not just snapshots. "47 new contacts this month (↑ 23% vs last month)" is far more compelling than a raw number.
+- Requires background sync to be in place first (metrics stored with timestamps)
+- Add trend indicators (delta + direction arrow) to KPIBar values
+- Show sparkline charts on per-client drill-down views
+- This is one of the most powerful things agencies can put in front of clients
+
+#### 6. Agency multi-location view (high priority — primary audience)
 Agencies managing 40+ GHL clients need a single dashboard to see all clients at a glance, with drill-down per client.
 - Change GHL OAuth to request agency-level access (currently connects at location/sub-account level)
 - After connect, call `GET /locations/?companyId={id}` to list all sub-accounts; store in `integrations.metadata` or a `ghl_locations` table
@@ -78,13 +85,13 @@ Implementation notes:
 - Key metric for multi-location table: appointment conversion % (count at "Appointment Set"-equivalent stage / total leads) — derive from pipeline stages, no separate Calendar API needed if agencies use pipeline stages for appointments
 - Export format: likely a printable/shareable summary card per client (name, key KPIs, funnel snapshot)
 
-#### 6. Export feature (tied to agency multi-location view)
+#### 7. Export feature (tied to agency multi-location view)
 Agencies need to quickly generate client-facing reports. Not a spreadsheet dump — a clean summary they can send.
 - Per-client report: logo, date range, KPI highlights, pipeline funnel snapshot
 - Format options: PDF (print/email) or shareable link (public URL with read-only view)
 - Trigger: "Export Report" button on each client's drill-down view
 
-#### 7. Cross-platform attribution (longer term — requires both Meta + GHL connected)
+#### 8. Cross-platform attribution (longer term — requires both Meta + GHL connected)
 The real differentiator. When a user has both Meta and GHL connected:
 - GHL contacts with `source = "facebook"` or UTM params matching Meta campaigns
 - Calculate: Meta spend → GHL contacts → GHL opportunities → closed revenue
