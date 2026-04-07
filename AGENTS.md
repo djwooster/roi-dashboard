@@ -83,6 +83,7 @@ Good comment targets:
 When touching an existing file that lacks comments, add them — don't leave it uncommented just because it wasn't written that way originally.
 
 ## Reference Files
+- `CODEBASE.md` — **start here**. Full map of every route, page, lib file, component, and DB table. Check before reading files or creating new ones.
 - `TODO.md` — implementation task list with context on what's built vs. pending
 - `.env.example` — all required environment variables with descriptions
 - `lib/oauth-config.ts` — single source of truth for all OAuth provider configs
