@@ -14,10 +14,26 @@ export type SummarySection = {
   body: string;
 };
 
-// Builds a concise prompt from the GHL data.
-// We keep the token count low (Haiku is fast but we still pay per token) by
-// sending only the numbers the model needs — no raw JSON blobs.
-function buildPrompt(data: GHLSyncResponse, locationName: string): string {
+// ── Prompts ───────────────────────────────────────────────────────────────────
+
+// System prompt: defines Claude's persona and output format.
+// Edit this to change tone, style, or structural rules without touching the data layer.
+const SYSTEM_PROMPT = `You are a sharp, concise marketing analyst writing performance summaries for a marketing agency's client reports. Your audience is the client — a business owner, not a marketer. Write in plain English: confident, specific, and free of jargon.
+
+Each summary is a JSON array of sections. Each section has:
+- "heading": 3–6 words, plain text, no punctuation, no markdown
+- "body": 1–2 sentences of direct insight grounded in the numbers
+
+Rules:
+- Only include a section if the data gives you something real to say
+- Never pad with generic advice ("consider improving your close rate")
+- Use specific numbers from the data to support every claim
+- Up to 5 sections total
+- Respond ONLY with the JSON array — no extra text, no markdown fences`;
+
+// User message: the raw data snapshot for this report.
+// Keep this lean — Haiku charges per token and we only need the numbers.
+function buildUserMessage(data: GHLSyncResponse, locationName: string): string {
   const pipelineLines = data.pipelines
     .slice(0, 5) // cap at 5 pipelines to keep the prompt short
     .map(
@@ -29,9 +45,7 @@ function buildPrompt(data: GHLSyncResponse, locationName: string): string {
     )
     .join("\n");
 
-  return `You are writing a performance summary for a marketing agency's client report.
-
-Client: ${locationName}
+  return `Client: ${locationName}
 Total contacts: ${data.contacts.toLocaleString()}
 Open opportunities: ${data.opportunities.toLocaleString()}
 Closed revenue: $${data.closedRevenue.toLocaleString()}
@@ -41,13 +55,7 @@ ${data.avgDealValue !== null ? `Avg deal value: $${data.avgDealValue.toLocaleStr
 Pipeline breakdown:
 ${pipelineLines || "No pipeline data available."}
 
-Write up to 5 sections. Each section must be a JSON object with:
-- "heading": a short bold title (3–6 words, plain text, no markdown)
-- "body": 1–2 sentences of plain English insight
-
-Only include sections where the data gives you something real to say.
-Respond ONLY with a JSON array of section objects — no extra text, no markdown fences.
-Example format: [{"heading":"Strong Lead Volume","body":"..."},{"heading":"Close Rate Opportunity","body":"..."}]`;
+Return a JSON array of up to 5 sections.`;
 }
 
 // Calls claude-haiku-4-5 to generate a structured AI summary for a GHL location report.
@@ -64,12 +72,11 @@ export async function generateReportSummary(
   data: GHLSyncResponse,
   locationName: string
 ): Promise<SummarySection[]> {
-  const prompt = buildPrompt(data, locationName);
-
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
-    messages: [{ role: "user", content: prompt }],
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: buildUserMessage(data, locationName) }],
   });
 
   // Extract the text content from the first content block.
