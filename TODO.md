@@ -36,14 +36,8 @@ Company-level scopes, `ghl_locations` table, `lib/ghl/syncLocations.ts`. Token r
 ### 4. Report page: per-client URL (depends on #1)
 Change `reports` unique constraint from `org_id` to `(org_id, location_id)`. Wire "Share Link" button to current location in switcher.
 
-### 5. Background Sync — **next priority**
-Every dashboard/report load currently hits GHL live — rate limit risk at scale, and blocks accurate historical date filtering.
-
-- New `metrics` table: `org_id`, `location_id`, `provider`, `period_start`, `period_end`, `data` (jsonb)
-- Vercel Cron job (`/api/cron/sync`) — runs hourly, loops all active integrations, writes to `metrics`
-- Dashboard + report page read from `metrics` instead of live calls
-- Date picker then queries `metrics` by date range (accurate historical data, not just current pipeline state)
-- Enables: week-over-week trend arrows, sparklines, fast report page loads
+### 5. ✅ Background Sync
+`metrics` table (Supabase), Vercel Cron at `/api/cron/sync` (hourly), dashboard passes `?period=` to `/api/ghl/sync` which serves from cache (< 2h) before falling back to live GHL. Pre-syncs all 5 preset windows (all_time / today / 7d / 30d / 90d) per location per org. Add `CRON_SECRET` env var in Vercel.
 
 ### 6. AI Summary on Report Page (Anthropic API)
 `AISummaryPlaceholder` already scaffolded in the report page.

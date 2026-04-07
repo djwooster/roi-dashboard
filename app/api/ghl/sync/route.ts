@@ -7,10 +7,20 @@ import { fetchLocationData, type GHLDateRange } from "@/lib/ghl/fetchLocationDat
 // (e.g. `from "@/app/api/ghl/sync/route"`) continue to work without changes.
 export type { GHLPipelineStage, GHLPipelineData, GHLSyncResponse } from "@/lib/ghl/types";
 
-// GET /api/ghl/sync?locationId={id}
+// How stale a metrics cache entry can be before we fall back to a live GHL call.
+// The cron runs hourly, so 2 hours gives one missed run worth of headroom.
+const CACHE_STALE_MS = 2 * 60 * 60 * 1000;
+
+// GET /api/ghl/sync?locationId={id}&period={label}&from={iso}&to={iso}
 // Returns KPI and pipeline data for the requested GHL location.
-// Called by the dashboard on mount (and on client switch) to populate KPIBar,
-// SourceTable, and PipelineFunnel.
+// Called by the dashboard on mount (and on client switch / date range change).
+//
+// Cache behaviour:
+//   1. If ?period= is one of the known cron-synced labels (all_time / today / 7d /
+//      30d / 90d), look up a fresh metrics row first. If found and < 2h old, return
+//      it immediately — no GHL API call needed.
+//   2. Otherwise (cache miss, stale, or custom date range), fall through to a live
+//      GHL call using ?from= and ?to= as before.
 //
 // Location resolution order:
 //   1. ?locationId query param — used by the client switcher
@@ -53,6 +63,33 @@ export async function GET(request: NextRequest) {
   }
 
   if (!locationId) return NextResponse.json({ error: "No GHL location ID found" }, { status: 400 });
+
+  // ── Cache lookup ────────────────────────────────────────────────────────────
+  // If the dashboard passes a ?period= label (e.g. "30d"), check for a fresh
+  // metrics row before hitting the GHL API. This prevents unnecessary GHL calls
+  // and guards against rate limits as the customer base grows.
+  const period = request.nextUrl.searchParams.get("period");
+  const KNOWN_PERIODS = new Set(["all_time", "today", "7d", "30d", "90d"]);
+
+  if (period && KNOWN_PERIODS.has(period)) {
+    const { data: cached } = await supabase
+      .from("metrics")
+      .select("data, synced_at")
+      .eq("org_id", orgId)
+      .eq("location_id", locationId)
+      .eq("provider", "ghl")
+      .eq("period_label", period)
+      .single();
+
+    if (cached) {
+      const ageMs = Date.now() - new Date(cached.synced_at).getTime();
+      if (ageMs < CACHE_STALE_MS) {
+        // Fresh cache hit — return without touching GHL
+        return NextResponse.json(cached.data);
+      }
+    }
+    // Cache miss or stale — fall through to live call below
+  }
 
   // Get a valid token — refreshes automatically if expired or expiring soon.
   // The company-level token (agency mode) is valid for all locations under that company.

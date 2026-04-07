@@ -9,7 +9,8 @@ Keep this updated when adding routes, components, or lib files.
 
 | Route | Method | Auth | What it does |
 |---|---|---|---|
-| `/api/ghl/sync` | GET | user session | Returns KPIs + pipeline data. Params: `?locationId=` (agency switcher), `?from=` / `?to=` (date range). Calls `fetchLocationData`. |
+| `/api/ghl/sync` | GET | user session | Returns KPIs + pipeline data. Params: `?locationId=`, `?period=` (cache key: all_time/today/7d/30d/90d), `?from=` / `?to=`. Checks `metrics` cache (< 2h) before live GHL call. |
+| `/api/cron/sync` | GET | `CRON_SECRET` | Vercel Cron (hourly). Loops all active GHL orgs × locations × 5 period windows. Upserts to `metrics` table. |
 | `/api/meta/insights` | GET | user session | Returns Meta ad spend, leads, revenue from the connected ad account. |
 | `/api/reports/create` | POST | user session | Creates (or retrieves existing) shareable report token for the org's GHL location. |
 | `/api/integrations/[provider]/connect` | GET | user session | Builds OAuth URL, sets CSRF nonce cookie. Provider config from `lib/oauth-config.ts`. |
@@ -97,6 +98,7 @@ Keep this updated when adding routes, components, or lib files.
 | `integrations` | OAuth connections. One row per org+provider. Stores tokens, expiry, `provider_user_id`, status. |
 | `reports` | Shareable report links. One per org today; needs `(org_id, location_id)` unique constraint once per-client report URLs are built (TODO #3). Token = access control. |
 | `ghl_locations` | GHL sub-account locations synced after agency OAuth. One row per location per org. Empty for single-location connections — sync route falls back to `integrations.provider_user_id` when empty. |
+| `metrics` | Hourly KPI snapshots written by the cron job. One row per `(org_id, location_id, provider, period_label)`. Read by `/api/ghl/sync` as a cache layer before hitting GHL live. |
 
 ---
 
