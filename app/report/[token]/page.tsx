@@ -212,8 +212,8 @@ export default async function ReportPage({
             // Cache write failure is non-fatal — next visit will regenerate
           }
         })();
-      } catch {
-        // Generation failed — summarySections stays null, placeholder renders
+      } catch (err) {
+        console.error("[report] summary failed:", err);
       }
     }
   }
