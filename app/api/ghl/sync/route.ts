@@ -8,8 +8,9 @@ import { fetchLocationData, type GHLDateRange } from "@/lib/ghl/fetchLocationDat
 export type { GHLPipelineStage, GHLPipelineData, GHLSyncResponse } from "@/lib/ghl/types";
 
 // How stale a metrics cache entry can be before we fall back to a live GHL call.
-// The cron runs hourly, so 2 hours gives one missed run worth of headroom.
-const CACHE_STALE_MS = 2 * 60 * 60 * 1000;
+// Cron runs daily on Hobby plan, so 25h gives one missed run worth of headroom.
+// Raise back to 2h when upgraded to Vercel Pro (hourly cron).
+const CACHE_STALE_MS = 25 * 60 * 60 * 1000;
 
 // Period labels the cron pre-syncs — used to gate cache lookups.
 // Defined at module scope so it's not reallocated on every request.
