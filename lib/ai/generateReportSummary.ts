@@ -80,8 +80,12 @@ export async function generateReportSummary(
   });
 
   // Extract the text content from the first content block.
-  const raw =
+  let raw =
     message.content[0].type === "text" ? message.content[0].text.trim() : "";
+
+  // Strip markdown code fences if the model wrapped its output despite being told not to.
+  // Models occasionally do this regardless of the instruction — handle it defensively.
+  raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
   // Parse the JSON array. If the model returns something unexpected, we throw
   // so the caller can fall back to the placeholder rather than showing garbage.
