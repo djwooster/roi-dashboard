@@ -31,14 +31,14 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
   ghl: {
     authUrl: "https://marketplace.gohighlevel.com/oauth/chooselocation",
     tokenUrl: "https://services.leadconnectorhq.com/oauth/token",
-    // companies.readonly + locations.readonly unlock agency/company-level OAuth —
-    // GHL returns a companyId in the token response which lets us enumerate all
-    // sub-accounts. The existing contact/opp scopes are still needed for data fetches.
+    // contacts.readonly + opportunities.readonly are required for KPI data fetches.
+    // companies.readonly + locations.readonly are agency-level scopes that unlock
+    // companyId in the token response and sub-account enumeration — only valid for
+    // true agency-level GHL apps. Removed for now since sub-account connections
+    // (the common case) reject them outright. Re-add when we build the agency flow.
     scopes: [
       "contacts.readonly",
       "opportunities.readonly",
-      "companies.readonly",
-      "locations.readonly",
     ],
     clientIdEnv: "GHL_CLIENT_ID",
     clientSecretEnv: "GHL_CLIENT_SECRET",
