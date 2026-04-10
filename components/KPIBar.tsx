@@ -77,34 +77,25 @@ type CardConfig = {
   label: string;
   sublabel: string;
   value: string;
-  highlight?: boolean; // Net Profit card gets green treatment
   icon: React.ReactNode;
   index: number;
 };
 
-function KPICard({ label, sublabel, value, highlight, icon, index }: CardConfig) {
+function KPICard({ label, sublabel, value, icon, index }: CardConfig) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.06, ease: "easeOut" }}
-      className={`flex-1 min-w-0 rounded-xl p-5 flex flex-col gap-0 ${
-        highlight
-          ? "bg-[#f0fdf4] border border-[#bbf7d0]"
-          : "bg-white border border-[#ebebeb]"
-      }`}
+      className="flex-1 min-w-0 rounded-xl p-5 bg-white border border-[#e5e5e5]"
     >
       {/* Icon */}
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-4 ${
-        highlight ? "bg-[#dcfce7] text-[#16a34a]" : "bg-[#f5f5f5] text-[#737373]"
-      }`}>
+      <div className="w-9 h-9 rounded-lg bg-[#f5f5f5] flex items-center justify-center mb-4 text-[#737373]">
         {icon}
       </div>
 
       {/* Value */}
-      <p className={`text-[1.75rem] font-bold leading-none tracking-tight tabular-nums ${
-        highlight ? "text-[#16a34a]" : "text-[#0a0a0a]"
-      }`}>
+      <p className="text-[1.75rem] font-bold leading-none tracking-tight tabular-nums text-[#0a0a0a]">
         {value}
       </p>
 
@@ -188,7 +179,6 @@ export default function KPIBar({
       label: "Net Profit",
       sublabel: "After ad spend",
       value: revenue > 0 || spend > 0 ? fmtMoney(netProfit) : "—",
-      highlight: true,
       icon: <IconNetProfit />,
     },
     {
