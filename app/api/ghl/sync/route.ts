@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidGHLToken } from "@/lib/ghl/getValidToken";
+import { getLocationToken } from "@/lib/ghl/getLocationToken";
 import { fetchLocationData, type GHLDateRange } from "@/lib/ghl/fetchLocationData";
 
 // Re-export types from the canonical types file so existing component imports
@@ -50,6 +51,10 @@ export async function GET(request: NextRequest) {
 
   if (!integration) return NextResponse.json({ error: "GHL not connected" }, { status: 404 });
 
+  // provider_user_id is companyId for agency connects, locationId for sub-account connects.
+  // We use this below to decide whether a location token exchange is needed.
+  const providerUserId = integration.provider_user_id;
+
   // Resolve which location to fetch data for.
   // ?locationId wins so the client switcher can request any sub-account.
   // If not provided, check ghl_locations for agency mode.
@@ -96,7 +101,6 @@ export async function GET(request: NextRequest) {
   }
 
   // Get a valid token — refreshes automatically if expired or expiring soon.
-  // The company-level token (agency mode) is valid for all locations under that company.
   // Throws and marks integration inactive if the refresh token is also invalid.
   let token: string;
   try {
@@ -104,6 +108,20 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "GHL token unavailable";
     return NextResponse.json({ error: message }, { status: 401 });
+  }
+
+  // For agency connects, providerUserId is the companyId — different from any locationId.
+  // Exchange the company token for a location-scoped token so contacts/opportunities
+  // endpoints work. Sub-account connects have providerUserId === locationId, so we
+  // skip the exchange and use the token as-is.
+  if (providerUserId && providerUserId !== locationId) {
+    try {
+      token = await getLocationToken(providerUserId, locationId, token);
+    } catch (err) {
+      // Exchange failed — log and fall back to the company token.
+      // Some endpoints may still respond; if not, the data fetch will surface the error.
+      console.warn("[GHL] location token exchange failed, using company token:", err);
+    }
   }
 
   // Optional date range — forwarded from the dashboard's date picker.

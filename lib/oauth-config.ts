@@ -31,14 +31,14 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
   ghl: {
     authUrl: "https://marketplace.gohighlevel.com/oauth/chooselocation",
     tokenUrl: "https://services.leadconnectorhq.com/oauth/token",
-    // contacts.readonly + opportunities.readonly are required for KPI data fetches.
-    // companies.readonly + locations.readonly are agency-level scopes that unlock
-    // companyId in the token response and sub-account enumeration — only valid for
-    // true agency-level GHL apps. Removed for now since sub-account connections
-    // (the common case) reject them outright. Re-add when we build the agency flow.
+    // companies.readonly + locations.readonly are agency-level scopes — they unlock
+    // companyId in the token response and allow sub-account enumeration via syncLocations.
+    // contacts.readonly + opportunities.readonly are NOT valid for agency apps (GHL
+    // enforces scope separation by app type). Instead, the sync route exchanges the
+    // company token for a location-scoped token on each data fetch via getLocationToken.
     scopes: [
-      "contacts.readonly",
-      "opportunities.readonly",
+      "companies.readonly",
+      "locations.readonly",
     ],
     clientIdEnv: "GHL_CLIENT_ID",
     clientSecretEnv: "GHL_CLIENT_SECRET",
