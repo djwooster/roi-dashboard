@@ -22,9 +22,9 @@ export async function getLocationToken(
     headers: {
       Authorization: `Bearer ${companyToken}`,
       Version: GHL_VERSION,
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/json",
     },
-    body: new URLSearchParams({ companyId, locationId }),
+    body: JSON.stringify({ companyId, locationId }),
   });
 
   if (!res.ok) {
