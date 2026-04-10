@@ -218,8 +218,8 @@ export default function Dashboard() {
 
       {/* Main area */}
       <div className="ml-[220px] flex-1 flex flex-col min-h-screen overflow-hidden">
-        {/* Live Ticker */}
-        <LiveTicker />
+        {/* Live Ticker commented out — content slides up */}
+        {/* <LiveTicker /> */}
 
         {/* Sticky header */}
         <div className="sticky top-0 z-10 bg-white border-b border-[#e5e5e5] px-6 py-3 flex items-center justify-between">

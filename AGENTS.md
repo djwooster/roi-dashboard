@@ -13,6 +13,32 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Founder: D. Wooster
 - Stack: Next.js 16.2.1, Supabase SSR, Tailwind CSS v4, TypeScript
 
+## Business Context (read before designing features)
+SourceIQ is currently being built as **custom software for one specific marketing agency** that runs paid lead generation campaigns for med spas. Every product decision should be evaluated through this lens first.
+
+**The agency's model:**
+- Charges med spas $2,000/month retainer; med spas cover their own ad spend separately
+- Runs a "grand slam offer" (Hormozi-style): guarantee 15 high-ticket sales in the first 30 days or full refund
+- Almost always delivers — med spas become long-term retainer clients after month 1
+- Manages GHL on behalf of all med spa clients; each med spa is a GHL sub-account
+
+**The funnel (core of everything):**
+Ad → **Lead** (opt-in) → **Appointment Booked** (via GHL calendar) → **Showed** (patron arrives at med spa) → **High-Ticket Sale** (closed won opportunity in GHL)
+
+**The data problem this solves:**
+- Agency books appointments through GHL but has no visibility into what happens at the med spa
+- Med spa owners currently track show/no-show in spreadsheets — dirty, unreliable data
+- SourceIQ replaces the spreadsheet: new appointments auto-appear on the client report page, med spa owner taps to confirm showed/no-show
+
+**The weekly report is the primary client-facing deliverable:**
+- `/report/[token]` is the shareable link the agency sends to each med spa every week
+- It should show funnel progress, show rate, close rate, and guarantee progress
+- The report page also doubles as the show/no-show confirmation interface
+
+**Longer-term vision:**
+- Use this agency as proof of concept, then niche into building custom software + automations for marketing agencies
+- SourceIQ becomes a template/starting point — not a one-size-fits-all SaaS
+
 ## Next.js 16 Critical Differences
 - Middleware file is **`proxy.ts`** at project root — export named `proxy`, not `middleware`
 - `cookies()` from `next/headers` is **async** — always `await cookies()`

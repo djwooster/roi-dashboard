@@ -2,6 +2,18 @@
 
 ---
 
+## Uncommitted Changes (built this session — commit before starting next)
+
+- **KPI bar redesigned** — 5 new cards: Revenue Generated, Ad Spend, Net Profit, New Clients, ROAS. Old aesthetic restored (rounded-lg, p-4, uppercase label, progress bar in demo). `wonCount` added to `GHLSyncResponse` and `fetchLocationData`. `newClients` + `netProfit` added to mock-data goals/deltas.
+- **LiveTicker commented out** — marquee removed, content slides up to top of page
+- **RevenueChart + TrendChart removed** from dashboard layout
+- **PipelineFunnel commented out** in dashboard (re-enable when per-location data flows)
+- **PipelineLeaderboard added** — `components/PipelineLeaderboard.tsx` (new file). Sortable table comparing all pipelines by close rate, avg deal, won/lost, revenue. Wired into dashboard after SourceTable. Demo mode uses `mockPipelines` from mock-data.
+- **SourceTable kept** — will be replaced by Funnel Snapshot (Priority A above)
+- **AGENTS.md + CODEBASE.md updated** — full med spa agency business context documented
+
+---
+
 ## What's Built (complete)
 
 - **GHL OAuth** — connect, callback (`/crm/callback` alias — GHL blocks "ghl" in redirect URIs), disconnect
@@ -19,6 +31,52 @@
 - **Demo mode** — `/demo` always works as marketing tool, mock data paths preserved in all components
 - **Billing enforcement** — `proxy.ts` reads subscription status from JWT metadata (no DB round-trip per request)
 - **Code comments** — all new files commented with why-not-what for contract developers
+
+---
+
+## Core Product Priorities (med spa agency focus)
+
+### A. Funnel Snapshot Component
+Replace `SourceTable` ("Lead Source Performance") with a funnel visualization showing:
+**Leads → Booked → Showed → Paid** with counts, conversion rates between each stage, and cost-per at each step.
+- Leads: GHL contacts count (already fetched)
+- Booked: GHL calendar/appointments API (new — needs `calendars.readonly` scope on sub-account app)
+- Showed: confirmed via report page by med spa owner (new — `appointment_confirmations` table)
+- Paid: GHL wonCount (already fetched)
+
+### B. Show/No-Show Confirmation on Report Page
+The `/report/[token]` page is the weekly client deliverable. Extend it so:
+- New GHL appointments auto-appear as a list on the report page
+- Med spa owner taps "Showed" or "No Show" per appointment (no login required)
+- Confirmation writes to `appointment_confirmations` table and updates the funnel snapshot
+- Schema needed:
+  ```sql
+  CREATE TABLE appointment_confirmations (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id uuid REFERENCES organizations(id),
+    location_id text NOT NULL,
+    ghl_appointment_id text NOT NULL,
+    contact_name text,
+    appointment_at timestamptz,
+    outcome text CHECK (outcome IN ('showed', 'no_show')),
+    confirmed_at timestamptz,
+    UNIQUE (org_id, ghl_appointment_id)
+  );
+  ```
+
+### C. GHL Appointments API Integration
+Fetch calendar appointments for a location to power the "Booked" funnel stage.
+- Endpoint: `GET /calendars/events?locationId={id}&startTime={}&endTime={}`
+- Scope needed: `calendars.readonly` — add to GHL sub-account app
+- New lib file: `lib/ghl/fetchAppointments.ts`
+- Integrate into `fetchLocationData.ts` or as a separate fetch in the sync route
+
+### D. Weekly Report Enhancement
+The report page needs to become a proper weekly deliverable:
+- Funnel snapshot (Lead → Booked → Showed → Paid) with conversion rates
+- Appointment list with show/no-show confirmation UI
+- Guarantee progress tracker ("X of 15 high-ticket sales — Y days remaining")
+- Clean, mobile-first design the agency sends to every med spa client weekly
 
 ---
 

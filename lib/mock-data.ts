@@ -354,6 +354,8 @@ export const monthlyGoals = {
   avgCPL: 65, // max budget (lower is better)
   totalRevenue: 2500000,
   blendedROAS: 40,
+  newClients: 250,
+  netProfit: 2200000,
 };
 
 // Active ROAS alerts (sources performing below threshold)
@@ -404,4 +406,5 @@ export const kpiDeltas = {
   totalRevenue: +18.2,
   blendedROAS: +9.4,
   newClients: +14.7,
+  netProfit: +21.3,
 };

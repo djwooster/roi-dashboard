@@ -3,6 +3,11 @@
 Quick reference for navigating the codebase. Check here before reading files or creating new ones.
 Keep this updated when adding routes, components, or lib files.
 
+> **Current build target:** Custom software for one marketing agency specializing in med spa lead generation.
+> Core funnel: **Lead → Booked → Showed → Paid**. The weekly client report (`/report/[token]`) is the
+> primary deliverable. Show/no-show confirmation (med spa owners tap to confirm) replaces spreadsheet tracking.
+> See `AGENTS.md` → Business Context for full background before designing new features.
+
 ---
 
 ## API Routes
