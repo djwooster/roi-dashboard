@@ -347,6 +347,20 @@ export const sourceSubChannels: Record<string, SubChannel[]> = {
   ],
 };
 
+// Funnel mock data — realistic med spa numbers for the /demo page.
+// These numbers are calibrated to the agency's real-world guarantee:
+// 15 high-ticket sales in 30 days from paid lead gen (Hormozi-style offer).
+export const mockFunnel = {
+  leads: 247,    // total opt-ins from Meta/Google ads
+  booked: 89,    // 36% booking rate (industry avg for med spa offers)
+  showed: 61,    // 69% show rate (after booking)
+  paid: 15,      // 25% close rate from showed — the guarantee target
+  spend: 12_400, // total ad spend for the period
+  guaranteeTarget: 15,
+  daysElapsed: 22,
+  daysTotal: 30,
+};
+
 // Monthly goal targets
 export const monthlyGoals = {
   totalLeads: 1000,

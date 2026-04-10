@@ -4,8 +4,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "@/components/Sidebar";
 import KPIBar from "@/components/KPIBar";
-import SourceTable from "@/components/SourceTable";
-// RevenueChart and TrendChart removed — replaced by KPI cards + table layout
+import FunnelSnapshot from "@/components/FunnelSnapshot";
+// SourceTable replaced by FunnelSnapshot (Lead → Booked → Showed → Paid)
+// import SourceTable from "@/components/SourceTable";
+// RevenueChart and TrendChart removed — replaced by KPI cards + funnel layout
 // import RevenueChart from "@/components/RevenueChart";
 // import TrendChart from "@/components/TrendChart";
 // PipelineFunnel commented out — will revisit once per-location data is flowing
@@ -258,7 +260,7 @@ export default function Dashboard() {
                 className="px-6 py-5 space-y-5 max-w-[1400px]"
               >
                 <KPIBar metaData={metaData} ghlData={ghlData} loading={loading} />
-                <SourceTable metaData={metaData} ghlData={ghlData} loading={loading} onSelectSource={demo ? handleSelectSource : undefined} selectedSource={demo ? selectedSource : null} />
+                <FunnelSnapshot ghlData={ghlData} metaData={metaData} loading={loading} />
                 {/* PipelineFunnel commented out — re-enable once per-location data flows */}
                 {/* <PipelineFunnel pipelines={ghlData?.pipelines ?? []} loading={loading} /> */}
                 <PipelineLeaderboard pipelines={ghlData?.pipelines ?? []} loading={loading} />

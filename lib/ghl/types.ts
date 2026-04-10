@@ -27,6 +27,18 @@ export type GHLPipelineData = {
   avgDealValue: number | null; // per-pipeline: wonRevenue / wonCount
 };
 
+// Minimal appointment shape from the GHL calendar events API.
+// title often contains the contact name; contact.name is more reliable when present.
+export type GHLAppointment = {
+  id: string;
+  title?: string;
+  startTime: string | number; // ISO string or epoch ms — API returns both depending on version
+  calendarId?: string;
+  contactId?: string;
+  contact?: { id: string; name?: string; email?: string; phone?: string };
+  appointmentStatus?: string;
+};
+
 export type GHLSyncResponse = {
   contacts: number;
   opportunities: number;
@@ -35,4 +47,9 @@ export type GHLSyncResponse = {
   closeRate: number | null;    // aggregate across all pipelines
   avgDealValue: number | null; // aggregate across all pipelines
   pipelines: GHLPipelineData[];
+  // Funnel stage counts — 0 until the relevant integrations are live:
+  // bookedCount: requires calendars.readonly scope on the GHL sub-account app
+  // showedCount: requires appointment_confirmations table + med spa owner to confirm
+  bookedCount: number;
+  showedCount: number;
 };

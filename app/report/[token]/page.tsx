@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidGHLToken } from "@/lib/ghl/getValidToken";
+import { getValidLocationToken } from "@/lib/ghl/getValidLocationToken";
 import { fetchLocationData } from "@/lib/ghl/fetchLocationData";
+import { fetchAppointments, getAppointmentContactName, getAppointmentDate } from "@/lib/ghl/fetchAppointments";
 import { generateReportSummary, type SummarySection } from "@/lib/ai/generateReportSummary";
+import AppointmentConfirmList, { type AppointmentItem } from "@/components/AppointmentConfirmList";
 import type { GHLPipelineData, GHLSyncResponse } from "@/lib/ghl/types";
 
 // Public report page — no auth required.
@@ -25,11 +28,62 @@ function LiveDot() {
   );
 }
 
-function KPICard({ label, value }: { label: string; value: string }) {
+// Compact funnel display used on the report page (vertical-friendly for mobile).
+// The dashboard FunnelSnapshot uses the horizontal layout; this is purpose-built
+// for the narrow mobile card design the agency sends to clients.
+function ReportFunnel({ data }: { data: GHLSyncResponse }) {
+  function convPct(from: number, to: number): string | null {
+    if (from === 0) return null;
+    return `${Math.round((to / from) * 100)}%`;
+  }
+
+  function fmtCount(n: number): string {
+    return n > 0 ? n.toLocaleString() : "—";
+  }
+
+  const stages = [
+    { label: "Leads",  value: data.contacts,    sub: "Total contacts" },
+    { label: "Booked", value: data.bookedCount,  sub: "Appointments set" },
+    { label: "Showed", value: data.showedCount,  sub: "Confirmed shows" },
+    { label: "Paid",   value: data.wonCount,     sub: "High-ticket sales" },
+  ];
+
+  const conversions = [
+    convPct(data.contacts, data.bookedCount),
+    convPct(data.bookedCount, data.showedCount),
+    convPct(data.showedCount, data.wonCount),
+  ];
+
+  const convLabels = ["Booking rate", "Show rate", "Close rate"];
+
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[11px] font-medium text-[#a3a3a3] uppercase tracking-wide">{label}</span>
-      <span className="text-3xl font-bold text-[#0a0a0a] tracking-tight">{value}</span>
+    <div className="rounded-xl border border-[#e5e5e5] overflow-hidden">
+      {/* Stage counts */}
+      <div className="grid grid-cols-4 divide-x divide-[#e5e5e5]">
+        {stages.map((s) => (
+          <div key={s.label} className="p-4 text-center">
+            <p className="text-[10px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-1">
+              {s.label}
+            </p>
+            <p className={`text-2xl font-bold tracking-tight ${s.value > 0 ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
+              {fmtCount(s.value)}
+            </p>
+            <p className="text-[10px] text-[#d4d4d4] mt-0.5">{s.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Conversion rates between stages */}
+      <div className="grid grid-cols-3 divide-x divide-[#e5e5e5] border-t border-[#f0f0f0] bg-[#fafafa]">
+        {conversions.map((rate, i) => (
+          <div key={i} className="px-3 py-2 text-center">
+            <p className={`text-sm font-semibold ${rate ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
+              {rate ?? "—"}
+            </p>
+            <p className="text-[10px] text-[#a3a3a3]">{convLabels[i]}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -160,15 +214,82 @@ export default async function ReportPage({
 
   if (!report) notFound();
 
+  // Resolve the best available token for this location.
+  // Sub-account token (if connected) has calendars.readonly for appointment fetching.
+  // Falls back to company token for contacts + opportunities data.
+  let ghlToken: string;
+  try {
+    const locationToken = await getValidLocationToken(report.org_id, report.location_id);
+    ghlToken = locationToken ?? await getValidGHLToken(report.org_id);
+  } catch {
+    ghlToken = "";
+  }
+
   // Fetch live GHL data — same shared function used by the dashboard sync route.
   let data: GHLSyncResponse | null = null;
   let dataError = false;
 
   try {
-    const ghlToken = await getValidGHLToken(report.org_id);
-    data = await fetchLocationData(report.location_id, ghlToken);
+    if (ghlToken) {
+      data = await fetchLocationData(report.location_id, ghlToken);
+    } else {
+      dataError = true;
+    }
   } catch {
     dataError = true;
+  }
+
+  // ── Showed count from appointment_confirmations ────────────────────────────
+  // Patch the showed count into the GHL data object. The table may not exist
+  // yet (requires SQL migration) — Supabase returns an error row, not a throw.
+  if (data) {
+    try {
+      const { count: showedCount } = await admin
+        .from("appointment_confirmations")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", report.org_id)
+        .eq("location_id", report.location_id)
+        .eq("outcome", "showed");
+
+      data = { ...data, showedCount: showedCount ?? 0 };
+    } catch {
+      // Table doesn't exist yet — showed stays 0
+    }
+  }
+
+  // ── Appointment list for show/no-show confirmation UI ─────────────────────
+  // Fetches the last 30 days of appointments from GHL, then merges with any
+  // existing confirmations from our DB so the UI shows the current state.
+  let appointmentItems: AppointmentItem[] = [];
+
+  if (ghlToken) {
+    try {
+      const { appointments } = await fetchAppointments(report.location_id, ghlToken);
+
+      // Fetch existing confirmations so the UI can show confirmed state on load
+      const { data: existingConfirmations } = await admin
+        .from("appointment_confirmations")
+        .select("ghl_appointment_id, outcome")
+        .eq("org_id", report.org_id)
+        .eq("location_id", report.location_id);
+
+      const confirmationMap = new Map(
+        (existingConfirmations ?? []).map((c) => [c.ghl_appointment_id, c.outcome as "showed" | "no_show"])
+      );
+
+      // Convert GHL appointment objects to the shape AppointmentConfirmList expects.
+      // Sort by appointment time descending so the most recent appear first.
+      appointmentItems = appointments
+        .map((appt) => ({
+          id: appt.id,
+          contactName: getAppointmentContactName(appt),
+          appointmentAt: getAppointmentDate(appt).toISOString(),
+          outcome: confirmationMap.get(appt.id) ?? null,
+        }))
+        .sort((a, b) => new Date(b.appointmentAt).getTime() - new Date(a.appointmentAt).getTime());
+    } catch {
+      // Appointments unavailable — omit the confirmation section
+    }
   }
 
   // ── AI summary (cached 24h) ────────────────────────────────────────────────
@@ -251,32 +372,33 @@ export default async function ReportPage({
           </div>
         ) : data ? (
           <>
-            {/* KPI strip */}
+            {/* Funnel overview — Lead → Booked → Showed → Paid */}
             <div className="mb-8">
               <p className="text-[11px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-4">
-                Performance Overview
+                Funnel Overview
               </p>
-              <div className="grid grid-cols-2 gap-6">
-                <KPICard label="Total Contacts" value={data.contacts.toLocaleString()} />
-                <KPICard label="Open Opportunities" value={data.opportunities.toLocaleString()} />
-                {data.closeRate !== null && (
-                  <KPICard label="Close Rate" value={`${data.closeRate}%`} />
-                )}
-                {data.avgDealValue !== null && (
-                  <KPICard label="Avg Deal Value" value={`$${data.avgDealValue.toLocaleString()}`} />
-                )}
-                {data.closedRevenue > 0 && (
-                  <KPICard
-                    label="Closed Revenue"
-                    value={`$${data.closedRevenue >= 1000
-                      ? `${(data.closedRevenue / 1000).toFixed(1)}K`
-                      : data.closedRevenue.toLocaleString()}`}
-                  />
-                )}
-              </div>
+              <ReportFunnel data={data} />
             </div>
 
-            {/* Funnel leaderboard */}
+            {/* Appointment confirmation — med spa owner marks who showed */}
+            {appointmentItems.length > 0 && (
+              <div className="mb-8">
+                <p className="text-[11px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-1">
+                  Appointment Updates
+                </p>
+                <p className="text-xs text-[#c4c4c4] mb-4">
+                  Tap to confirm who arrived at your location
+                </p>
+                <div className="rounded-xl border border-[#e5e5e5] px-4">
+                  <AppointmentConfirmList
+                    appointments={appointmentItems}
+                    reportToken={token}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Pipeline leaderboard */}
             {data.pipelines.length > 0 && (
               <div className="mb-8">
                 <p className="text-[11px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-1">

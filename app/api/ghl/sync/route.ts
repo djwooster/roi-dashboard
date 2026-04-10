@@ -125,7 +125,19 @@ export async function GET(request: NextRequest) {
 
   try {
     const data = await fetchLocationData(locationId, token, dateRange);
-    return NextResponse.json(data);
+
+    // Inject showed count from appointment_confirmations — this is our data, not GHL's.
+    // The table may not exist in older deployments; Supabase returns an error (not a throw)
+    // so we default to 0 safely. The user-scoped client is used here because the sync
+    // route runs in an authenticated context and RLS is correct.
+    const { count: showedCount } = await supabase
+      .from("appointment_confirmations")
+      .select("*", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .eq("location_id", locationId)
+      .eq("outcome", "showed");
+
+    return NextResponse.json({ ...data, showedCount: showedCount ?? 0 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "GHL sync failed";
     return NextResponse.json({ error: message }, { status: 500 });

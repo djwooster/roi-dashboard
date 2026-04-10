@@ -1,4 +1,5 @@
 import { ghlFetch } from "./api";
+import { fetchAppointments } from "./fetchAppointments";
 import type {
   GHLOpportunity,
   GHLListResponse,
@@ -41,7 +42,10 @@ export async function fetchLocationData(
 ): Promise<GHLSyncResponse> {
   const dates = oppDateParams(dateRange);
 
-  const [contactsRes, oppsRes, wonRes] = await Promise.all([
+  // Fetch appointments in parallel with the core GHL calls.
+  // fetchAppointments silently returns { count: 0 } if the calendars.readonly scope
+  // isn't on the sub-account app yet — the funnel degrades gracefully.
+  const [contactsRes, oppsRes, wonRes, appointmentsResult] = await Promise.all([
     // Contacts count is intentionally not date-filtered — agencies want total pipeline
     // size, not just contacts added in the selected window.
     ghlFetch(`/contacts/?locationId=${locationId}&limit=1`, token),
@@ -49,9 +53,11 @@ export async function fetchLocationData(
     // Fetch won opps with full records so we can sum revenue.
     // limit=100 covers the vast majority of pipelines — pagination can be layered in later.
     ghlFetch(`/opportunities/search?location_id=${locationId}&status=won&limit=100${dates}`, token),
+    fetchAppointments(locationId, token, dateRange),
   ]);
 
   const empty = {} as GHLListResponse<GHLOpportunity>;
+  // appointmentsResult is already fully resolved (not a Response) — use it directly below
   const [contactsData, oppsData, wonData] = await Promise.all([
     contactsRes.ok ? contactsRes.json() as Promise<GHLListResponse<{ id: string }>> : Promise.resolve(empty),
     oppsRes.ok ? oppsRes.json() as Promise<GHLListResponse<GHLOpportunity>> : Promise.resolve(empty),
@@ -127,5 +133,18 @@ export async function fetchLocationData(
     : null;
   const avgDealValue = totalWonCount > 0 ? Math.round(closedRevenue / totalWonCount) : null;
 
-  return { contacts, opportunities, wonCount: totalWonCount, closedRevenue, closeRate, avgDealValue, pipelines };
+  // showedCount is 0 here — the sync route overwrites it from appointment_confirmations.
+  // The report page also patches it after fetching from the DB. Keeping it in the type
+  // ensures all consumers of GHLSyncResponse have a consistent shape.
+  return {
+    contacts,
+    opportunities,
+    wonCount: totalWonCount,
+    closedRevenue,
+    closeRate,
+    avgDealValue,
+    pipelines,
+    bookedCount: appointmentsResult.count,
+    showedCount: 0,
+  };
 }
