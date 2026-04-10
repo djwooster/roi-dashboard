@@ -30,6 +30,7 @@ export type GHLPipelineData = {
 export type GHLSyncResponse = {
   contacts: number;
   opportunities: number;
+  wonCount: number;            // total closed-won opportunity count
   closedRevenue: number;
   closeRate: number | null;    // aggregate across all pipelines
   avgDealValue: number | null; // aggregate across all pipelines

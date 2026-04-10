@@ -25,7 +25,22 @@
 ## Active / Next Up
 
 ### 1. ✅ GHL Agency OAuth
-Company-level scopes, `ghl_locations` table, `lib/ghl/syncLocations.ts`. Token response `companyId` stored as `provider_user_id`; locations synced after connect. Single-location accounts unaffected (backward compatible).
+Company-level scopes (`companies.readonly` + `locations.readonly`), `ghl_locations` table, `lib/ghl/syncLocations.ts`. Token response `companyId` stored as `provider_user_id`; all locations synced after connect (paginated, 100/page). Single-location accounts unaffected.
+
+### 1a. GHL Sub-Account OAuth — setup steps remaining
+Per-location tokens stored in `ghl_locations`. Code is built. Still needed:
+- [ ] **Run SQL migration** in Supabase SQL Editor:
+  ```sql
+  ALTER TABLE ghl_locations
+  ADD COLUMN IF NOT EXISTS access_token text,
+  ADD COLUMN IF NOT EXISTS refresh_token text,
+  ADD COLUMN IF NOT EXISTS token_expires_at timestamptz,
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'pending';
+  ```
+- [ ] **Create GHL sub-account app** in marketplace: Target User = Sub-Account, scopes = `contacts.readonly` + `opportunities.readonly`, redirect URL = `https://sourceiq.app/api/integrations/loc/callback` (and localhost)
+- [ ] **Add env vars** to `.env.local` and Vercel: `GHL_SUBACCOUNT_CLIENT_ID`, `GHL_SUBACCOUNT_CLIENT_SECRET`
+- [ ] **Reconnect GHL agency** (disconnect + reconnect) to re-sync all locations with pagination fix
+- [ ] **Refine integrations page UI** — search/filter for large location lists, connected count, bulk connect option
 
 ### 2. ✅ Client Switcher
 `ClientSwitcher.tsx` — searchable dropdown in dashboard header, reads `ghl_locations`, hidden when < 2 locations.

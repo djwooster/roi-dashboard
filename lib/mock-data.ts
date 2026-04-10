@@ -390,7 +390,10 @@ export function getTotals(multiplier = 1) {
     leadSources.reduce((s, r) => s + r.closedRevenue, 0) * multiplier;
   const avgCPL = totalLeads > 0 ? totalSpend / totalLeads : 0;
   const blendedROAS = totalSpend > 0 ? totalRevenue / totalSpend : 0;
-  return { totalLeads, totalSpend, totalRevenue, avgCPL, blendedROAS };
+  const newClients = Math.round(
+    leadSources.reduce((s, r) => s + r.closedRevenue / r.avgDealValue, 0) * multiplier
+  );
+  return { totalLeads, totalSpend, totalRevenue, avgCPL, blendedROAS, newClients };
 }
 
 // Month-over-month delta mock values
@@ -400,4 +403,5 @@ export const kpiDeltas = {
   avgCPL: -3.8,
   totalRevenue: +18.2,
   blendedROAS: +9.4,
+  newClients: +14.7,
 };

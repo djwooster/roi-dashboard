@@ -5,9 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "@/components/Sidebar";
 import KPIBar from "@/components/KPIBar";
 import SourceTable from "@/components/SourceTable";
-import RevenueChart from "@/components/RevenueChart";
-import TrendChart from "@/components/TrendChart";
-import PipelineFunnel from "@/components/PipelineFunnel";
+// RevenueChart and TrendChart removed — replaced by KPI cards + table layout
+// import RevenueChart from "@/components/RevenueChart";
+// import TrendChart from "@/components/TrendChart";
+// PipelineFunnel commented out — will revisit once per-location data is flowing
+// import PipelineFunnel from "@/components/PipelineFunnel";
 import CampaignTables from "@/components/CampaignTables";
 import PipelineLeaderboard from "@/components/PipelineLeaderboard";
 import LiveTicker from "@/components/LiveTicker";
@@ -257,11 +259,8 @@ export default function Dashboard() {
               >
                 <KPIBar metaData={metaData} ghlData={ghlData} loading={loading} />
                 <SourceTable metaData={metaData} ghlData={ghlData} loading={loading} onSelectSource={demo ? handleSelectSource : undefined} selectedSource={demo ? selectedSource : null} />
-                <div className="grid grid-cols-2 gap-3">
-                  <RevenueChart />
-                  <TrendChart />
-                </div>
-                <PipelineFunnel pipelines={ghlData?.pipelines ?? []} loading={loading} />
+                {/* PipelineFunnel commented out — re-enable once per-location data flows */}
+                {/* <PipelineFunnel pipelines={ghlData?.pipelines ?? []} loading={loading} /> */}
                 <PipelineLeaderboard pipelines={ghlData?.pipelines ?? []} loading={loading} />
                 <CampaignTables />
               </motion.div>

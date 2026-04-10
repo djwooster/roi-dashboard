@@ -4,172 +4,212 @@ import { motion } from "framer-motion";
 import { useDemoMode } from "@/lib/demo-context";
 import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
 import type { GHLSyncResponse } from "@/app/api/ghl/sync/route";
-import {
-  getTotals,
-  kpiDeltas,
-  monthlyGoals,
-  dateRangeMultipliers,
-} from "@/lib/mock-data";
-import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
+import { getTotals, kpiDeltas } from "@/lib/mock-data";
 
-// ── Demo (mock data) card ─────────────────────────────────────────────────────
+// ── Formatters ────────────────────────────────────────────────────────────────
 
-function fmtRaw(n: number, style: "currency" | "number" | "decimal"): string {
-  if (style === "currency") {
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-    return `$${n.toFixed(0)}`;
-  }
-  if (style === "decimal") return n.toFixed(2) + "x";
+function fmtMoney(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
+function fmtNumber(n: number): string {
   if (n >= 1_000) return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   return n.toFixed(0);
 }
 
-type DemoCardProps = {
+function fmtROAS(n: number): string {
+  return `${n.toFixed(1)}x`;
+}
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+function IconRevenue() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M8 1.5v13M5 4.5c0-.83.67-1.5 1.5-1.5h3a1.5 1.5 0 010 3H6.5A1.5 1.5 0 005 7.5v0A1.5 1.5 0 006.5 9h3A1.5 1.5 0 0011 10.5v0A1.5 1.5 0 009.5 12h-3A1.5 1.5 0 015 10.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function IconSpend() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M2 4.5h12M2 4.5v7a1 1 0 001 1h10a1 1 0 001-1v-7M2 4.5l1-2h10l1 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="8" cy="8.5" r="1.2" fill="currentColor"/>
+    </svg>
+  );
+}
+
+function IconNetProfit() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M2 11.5l4-4 3 2.5 5-6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M10.5 4h3.5v3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function IconClients() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="6" cy="5" r="2.2" stroke="currentColor" strokeWidth="1.3"/>
+      <path d="M1.5 13c0-2.485 2.015-4.5 4.5-4.5s4.5 2.015 4.5 4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M11 3.5a2 2 0 010 3M13.5 13c0-1.93-1.12-3.6-2.75-4.37" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function IconROAS() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="9" width="2.5" height="5" rx="0.5" fill="currentColor" opacity="0.5"/>
+      <rect x="6" y="6" width="2.5" height="8" rx="0.5" fill="currentColor" opacity="0.7"/>
+      <rect x="10" y="3" width="2.5" height="11" rx="0.5" fill="currentColor"/>
+    </svg>
+  );
+}
+
+// ── Card variants ─────────────────────────────────────────────────────────────
+
+type CardConfig = {
   label: string;
-  rawValue: number;
-  format: "currency" | "number" | "decimal";
-  goal: number;
-  goalLabel: string;
-  lowerBetter?: boolean;
-  delta: number;
+  sublabel: string;
+  value: string;
+  highlight?: boolean; // Net Profit card gets green treatment
+  icon: React.ReactNode;
   index: number;
 };
 
-function DemoKPICard({ label, rawValue, format, goal, goalLabel, lowerBetter, delta, index }: DemoCardProps) {
-  const animated = useAnimatedNumber(rawValue);
-  const positive = delta >= 0;
-  const progressPct = lowerBetter
-    ? Math.min((goal / Math.max(animated, 0.01)) * 100, 100)
-    : Math.min((animated / goal) * 100, 100);
-  const progressColor =
-    progressPct >= 80 ? "bg-green-500" : progressPct >= 50 ? "bg-amber-400" : "bg-red-400";
-
+function KPICard({ label, sublabel, value, highlight, icon, index }: CardConfig) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05, ease: "easeOut" }}
-      className="flex-1 min-w-0 border border-[#e5e5e5] rounded-lg p-4 bg-white"
+      transition={{ duration: 0.3, delay: index * 0.06, ease: "easeOut" }}
+      className={`flex-1 min-w-0 rounded-xl p-5 flex flex-col gap-0 ${
+        highlight
+          ? "bg-[#f0fdf4] border border-[#bbf7d0]"
+          : "bg-white border border-[#ebebeb]"
+      }`}
     >
-      <p className="text-[11px] font-medium text-[#a3a3a3] uppercase tracking-wider mb-2">{label}</p>
-      <div className="flex items-end justify-between gap-2">
-        <p className="text-2xl font-semibold text-[#0a0a0a] tracking-tight leading-none tabular-nums">
-          {fmtRaw(animated, format)}
-        </p>
-        <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded shrink-0 ${positive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-          {positive ? "+" : ""}{delta.toFixed(1)}%
-        </span>
+      {/* Icon */}
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-4 ${
+        highlight ? "bg-[#dcfce7] text-[#16a34a]" : "bg-[#f5f5f5] text-[#737373]"
+      }`}>
+        {icon}
       </div>
-      <p className="text-[11px] text-[#a3a3a3] mt-1 mb-2.5">vs last month</p>
-      <div>
-        <div className="h-1 bg-[#f5f5f5] rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${progressPct}%` }}
-            transition={{ duration: 0.7, delay: index * 0.05 + 0.3, ease: "easeOut" }}
-            className={`h-full rounded-full ${progressColor}`}
-          />
-        </div>
-        <p className="text-[10px] text-[#d4d4d4] mt-1">{Math.round(progressPct)}% of {goalLabel} goal</p>
-      </div>
+
+      {/* Value */}
+      <p className={`text-[1.75rem] font-bold leading-none tracking-tight tabular-nums ${
+        highlight ? "text-[#16a34a]" : "text-[#0a0a0a]"
+      }`}>
+        {value}
+      </p>
+
+      {/* Label + sublabel */}
+      <p className="text-sm font-semibold text-[#0a0a0a] mt-2">{label}</p>
+      <p className="text-[11px] text-[#a3a3a3] mt-0.5 leading-snug">{sublabel}</p>
     </motion.div>
   );
 }
-
-// ── Skeleton card ─────────────────────────────────────────────────────────────
 
 function SkeletonKPICard({ index }: { index: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05, ease: "easeOut" }}
-      className="flex-1 min-w-0 border border-[#e5e5e5] rounded-lg p-4 bg-white"
+      transition={{ duration: 0.3, delay: index * 0.06, ease: "easeOut" }}
+      className="flex-1 min-w-0 rounded-xl p-5 bg-white border border-[#ebebeb]"
     >
-      <div className="animate-pulse space-y-2.5">
-        <div className="h-2 w-20 bg-[#ebebeb] rounded" />
-        <div className="h-7 w-24 bg-[#ebebeb] rounded" />
-        <div className="h-2 w-14 bg-[#ebebeb] rounded" />
-        <div className="h-1 w-full bg-[#ebebeb] rounded-full mt-3" />
-        <div className="h-2 w-16 bg-[#ebebeb] rounded" />
+      <div className="animate-pulse space-y-3">
+        <div className="w-9 h-9 bg-[#ebebeb] rounded-lg" />
+        <div className="h-8 w-24 bg-[#ebebeb] rounded mt-4" />
+        <div className="h-3 w-28 bg-[#ebebeb] rounded" />
+        <div className="h-2.5 w-20 bg-[#ebebeb] rounded" />
       </div>
-    </motion.div>
-  );
-}
-
-// ── Empty card ────────────────────────────────────────────────────────────────
-
-function EmptyKPICard({ label, index, value }: { label: string; index: number; value?: string | null }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05, ease: "easeOut" }}
-      className="flex-1 min-w-0 border border-[#e5e5e5] rounded-lg p-4 bg-white"
-    >
-      <p className="text-[11px] font-medium text-[#a3a3a3] uppercase tracking-wider mb-2">{label}</p>
-      <p className={`text-2xl font-semibold tracking-tight leading-none ${value ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
-        {value ?? "—"}
-      </p>
-      <p className="text-[11px] text-[#e5e5e5] mt-1">{value ? "Meta Ads · all time" : "No data yet"}</p>
     </motion.div>
   );
 }
 
 // ── KPIBar ────────────────────────────────────────────────────────────────────
 
-const LABELS = ["Total Leads", "Total Spend", "Avg CPL", "Total Revenue", "Blended ROAS"];
-
-function fmtMoney(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(2)}`;
-}
-
-export default function KPIBar({ metaData, ghlData, loading }: { metaData?: MetaInsightsResponse | null; ghlData?: GHLSyncResponse | null; loading?: boolean }) {
+export default function KPIBar({
+  metaData,
+  ghlData,
+  loading,
+}: {
+  metaData?: MetaInsightsResponse | null;
+  ghlData?: GHLSyncResponse | null;
+  loading?: boolean;
+}) {
   const demo = useDemoMode();
 
-  if (!demo) {
-    if (loading) {
-      return (
-        <div className="flex gap-3">
-          {LABELS.map((label, i) => <SkeletonKPICard key={label} index={i} />)}
-        </div>
-      );
-    }
-    const metaSpend = metaData?.totals.spend ?? 0;
-    const metaLeads = metaData?.totals.leads ?? 0;
-    const totalLeads = metaLeads + (ghlData?.contacts ?? 0);
-    const totalRevenue = (metaData?.totals.revenue ?? 0) + (ghlData?.closedRevenue ?? 0);
-
+  if (!demo && loading) {
     return (
       <div className="flex gap-3">
-        {LABELS.map((label, i) => {
-          let value: string | null = null;
-          if (label === "Total Spend" && metaSpend > 0) value = fmtMoney(metaSpend);
-          if (label === "Total Leads" && totalLeads > 0) value = totalLeads.toLocaleString();
-          if (label === "Total Revenue" && totalRevenue > 0) value = fmtMoney(totalRevenue);
-          return <EmptyKPICard key={label} label={label} index={i} value={value} />;
-        })}
+        {Array.from({ length: 5 }).map((_, i) => <SkeletonKPICard key={i} index={i} />)}
       </div>
     );
   }
 
-  const mult = dateRangeMultipliers["30d"];
-  const { totalLeads, totalSpend, avgCPL, totalRevenue, blendedROAS } = getTotals(mult);
+  let revenue: number, spend: number, wonCount: number;
 
-  const cards: Omit<DemoCardProps, "index">[] = [
-    { label: "Total Leads", rawValue: totalLeads, format: "number", goal: monthlyGoals.totalLeads * mult, goalLabel: fmtRaw(monthlyGoals.totalLeads * mult, "number"), delta: kpiDeltas.totalLeads },
-    { label: "Total Spend", rawValue: totalSpend, format: "currency", goal: monthlyGoals.totalSpend * mult, goalLabel: fmtRaw(monthlyGoals.totalSpend * mult, "currency"), delta: kpiDeltas.totalSpend },
-    { label: "Avg CPL", rawValue: avgCPL, format: "currency", goal: monthlyGoals.avgCPL, goalLabel: fmtRaw(monthlyGoals.avgCPL, "currency"), lowerBetter: true, delta: kpiDeltas.avgCPL },
-    { label: "Total Revenue", rawValue: totalRevenue, format: "currency", goal: monthlyGoals.totalRevenue * mult, goalLabel: fmtRaw(monthlyGoals.totalRevenue * mult, "currency"), delta: kpiDeltas.totalRevenue },
-    { label: "Blended ROAS", rawValue: blendedROAS, format: "decimal", goal: monthlyGoals.blendedROAS, goalLabel: `${monthlyGoals.blendedROAS}x`, delta: kpiDeltas.blendedROAS },
+  if (demo) {
+    const mult = 1; // always 30d for demo KPIs
+    const totals = getTotals(mult);
+    revenue  = totals.totalRevenue;
+    spend    = totals.totalSpend;
+    wonCount = totals.newClients;
+  } else {
+    revenue  = ghlData?.closedRevenue ?? 0;
+    spend    = metaData?.totals.spend ?? 0;
+    wonCount = ghlData?.wonCount ?? 0;
+  }
+
+  const netProfit = revenue - spend;
+  const roas = spend > 0 ? revenue / spend : 0;
+
+  const cards: Omit<CardConfig, "index">[] = [
+    {
+      label: "Revenue Generated",
+      sublabel: "Closed won deals",
+      value: revenue > 0 ? fmtMoney(revenue) : "—",
+      icon: <IconRevenue />,
+    },
+    {
+      label: "Ad Spend",
+      sublabel: "Meta + Google ads",
+      value: spend > 0 ? fmtMoney(spend) : "—",
+      icon: <IconSpend />,
+    },
+    {
+      label: "Net Profit",
+      sublabel: "After ad spend",
+      value: revenue > 0 || spend > 0 ? fmtMoney(netProfit) : "—",
+      highlight: true,
+      icon: <IconNetProfit />,
+    },
+    {
+      label: "New Clients",
+      sublabel: "Confirmed paying clients",
+      value: wonCount > 0 ? fmtNumber(wonCount) : "—",
+      icon: <IconClients />,
+    },
+    {
+      label: "ROAS",
+      sublabel: "Return on ad spend",
+      value: roas > 0 ? fmtROAS(roas) : "—",
+      icon: <IconROAS />,
+    },
   ];
 
   return (
     <div className="flex gap-3">
-      {cards.map((card, i) => <DemoKPICard key={card.label} {...card} index={i} />)}
+      {cards.map((card, i) => (
+        <KPICard key={card.label} {...card} index={i} />
+      ))}
     </div>
   );
 }

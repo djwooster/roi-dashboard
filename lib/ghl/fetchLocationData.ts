@@ -127,5 +127,5 @@ export async function fetchLocationData(
     : null;
   const avgDealValue = totalWonCount > 0 ? Math.round(closedRevenue / totalWonCount) : null;
 
-  return { contacts, opportunities, closedRevenue, closeRate, avgDealValue, pipelines };
+  return { contacts, opportunities, wonCount: totalWonCount, closedRevenue, closeRate, avgDealValue, pipelines };
 }
