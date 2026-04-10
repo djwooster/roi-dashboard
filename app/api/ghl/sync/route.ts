@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidGHLToken } from "@/lib/ghl/getValidToken";
-import { getLocationToken } from "@/lib/ghl/getLocationToken";
+import { getValidLocationToken } from "@/lib/ghl/getValidLocationToken";
 import { fetchLocationData, type GHLDateRange } from "@/lib/ghl/fetchLocationData";
 
 // Re-export types from the canonical types file so existing component imports
@@ -51,10 +51,6 @@ export async function GET(request: NextRequest) {
 
   if (!integration) return NextResponse.json({ error: "GHL not connected" }, { status: 404 });
 
-  // provider_user_id is companyId for agency connects, locationId for sub-account connects.
-  // We use this below to decide whether a location token exchange is needed.
-  const providerUserId = integration.provider_user_id;
-
   // Resolve which location to fetch data for.
   // ?locationId wins so the client switcher can request any sub-account.
   // If not provided, check ghl_locations for agency mode.
@@ -100,27 +96,24 @@ export async function GET(request: NextRequest) {
     // Cache miss or stale — fall through to live call below
   }
 
-  // Get a valid token — refreshes automatically if expired or expiring soon.
-  // Throws and marks integration inactive if the refresh token is also invalid.
+  // Try to get a location-specific token from ghl_locations (stored by per-location
+  // sub-account OAuth). This token has contacts.readonly + opportunities.readonly
+  // which are required for data fetches. Falls back to the company token if the
+  // location hasn't been connected yet — data will be empty until it is.
   let token: string;
-  try {
-    token = await getValidGHLToken(orgId);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "GHL token unavailable";
-    return NextResponse.json({ error: message }, { status: 401 });
-  }
+  const locationToken = await getValidLocationToken(orgId, locationId);
 
-  // For agency connects, providerUserId is the companyId — different from any locationId.
-  // Exchange the company token for a location-scoped token so contacts/opportunities
-  // endpoints work. Sub-account connects have providerUserId === locationId, so we
-  // skip the exchange and use the token as-is.
-  if (providerUserId && providerUserId !== locationId) {
+  if (locationToken) {
+    token = locationToken;
+  } else {
+    // No location token — fall back to company token (agency connect only).
+    // contacts/opportunities endpoints will return empty until the location is
+    // connected via sub-account OAuth from the integrations page.
     try {
-      token = await getLocationToken(providerUserId, locationId, token);
+      token = await getValidGHLToken(orgId);
     } catch (err) {
-      // Exchange failed — log and fall back to the company token.
-      // Some endpoints may still respond; if not, the data fetch will surface the error.
-      console.warn("[GHL] location token exchange failed, using company token:", err);
+      const message = err instanceof Error ? err.message : "GHL token unavailable";
+      return NextResponse.json({ error: message }, { status: 401 });
     }
   }
 

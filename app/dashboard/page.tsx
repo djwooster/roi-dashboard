@@ -9,6 +9,7 @@ import RevenueChart from "@/components/RevenueChart";
 import TrendChart from "@/components/TrendChart";
 import PipelineFunnel from "@/components/PipelineFunnel";
 import CampaignTables from "@/components/CampaignTables";
+import PipelineLeaderboard from "@/components/PipelineLeaderboard";
 import LiveTicker from "@/components/LiveTicker";
 import IntegrationsPage from "@/components/IntegrationsPage";
 import SettingsPage from "@/components/SettingsPage";
@@ -261,6 +262,7 @@ export default function Dashboard() {
                   <TrendChart />
                 </div>
                 <PipelineFunnel pipelines={ghlData?.pipelines ?? []} loading={loading} />
+                <PipelineLeaderboard pipelines={ghlData?.pipelines ?? []} loading={loading} />
                 <CampaignTables />
               </motion.div>
             ) : isIntegrations ? (

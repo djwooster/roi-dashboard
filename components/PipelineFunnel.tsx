@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useDemoMode } from "@/lib/demo-context";
 import { pipelineStages } from "@/lib/mock-data";
-import type { GHLPipelineData } from "@/app/api/ghl/sync/route";
+import type { GHLPipelineData } from "@/lib/ghl/types";
 
 function fmtMoney(n: number) {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
@@ -109,8 +109,45 @@ export default function PipelineFunnel({ pipelines, loading }: Props) {
 function RealPipeline({ pipeline }: { pipeline: GHLPipelineData }) {
   const maxCount = Math.max(...pipeline.stages.map((s) => s.count), 1);
 
+  // Summary stats shown above the funnel bars — these are computed server-side
+  // in fetchLocationData and passed through GHLPipelineData.
+  const stats: { label: string; value: string | null }[] = [
+    {
+      label: "Close Rate",
+      value: pipeline.closeRate !== null ? `${pipeline.closeRate}%` : null,
+    },
+    {
+      label: "Avg Deal",
+      value: pipeline.avgDealValue !== null ? fmtMoney(pipeline.avgDealValue) : null,
+    },
+    {
+      label: "Won",
+      value: pipeline.wonCount > 0 ? pipeline.wonCount.toLocaleString() : null,
+    },
+    {
+      label: "Lost",
+      value: pipeline.lostCount > 0 ? pipeline.lostCount.toLocaleString() : null,
+    },
+    {
+      label: "Won Revenue",
+      value: pipeline.wonRevenue > 0 ? fmtMoney(pipeline.wonRevenue) : null,
+    },
+  ];
+
   return (
     <div className="space-y-1.5">
+      {/* Pipeline-level KPIs — shown above stage bars so users see performance
+          context (close rate, deal size) before reading the funnel shape. */}
+      <div className="flex flex-wrap gap-x-5 gap-y-1 mb-3 pb-3 border-b border-[#f5f5f5]">
+        {stats.map(({ label, value }) => (
+          <div key={label} className="flex flex-col">
+            <span className="text-[10px] font-medium text-[#a3a3a3] uppercase tracking-wider">{label}</span>
+            <span className={`text-sm font-semibold tabular-nums ${value ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
+              {value ?? "—"}
+            </span>
+          </div>
+        ))}
+      </div>
       {pipeline.stages.map((stage, i) => {
         const next = pipeline.stages[i + 1];
         const pct = Math.round((stage.count / maxCount) * 100);

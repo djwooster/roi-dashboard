@@ -5,6 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 
+type GHLLocation = {
+  location_id: string;
+  location_name: string;
+  status: string | null;
+};
+
 type Integration = {
   id: string;
   name: string;
@@ -80,6 +86,7 @@ export default function IntegrationsPage() {
 
   const [connected, setConnected] = useState<Set<string>>(new Set());
   const [loadingConnected, setLoadingConnected] = useState(true);
+  const [ghlLocations, setGhlLocations] = useState<GHLLocation[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -88,13 +95,25 @@ export default function IntegrationsPage() {
       const user = session?.user;
       if (!user?.user_metadata?.org_id) { setLoadingConnected(false); return; }
 
-      const { data } = await supabase
-        .from("integrations")
-        .select("provider")
-        .eq("org_id", user.user_metadata.org_id)
-        .eq("status", "active");
+      const orgId = user.user_metadata.org_id;
 
-      if (data) setConnected(new Set(data.map((r: { provider: string }) => r.provider)));
+      const [integrationsRes, locationsRes] = await Promise.all([
+        supabase
+          .from("integrations")
+          .select("provider")
+          .eq("org_id", orgId)
+          .eq("status", "active"),
+        supabase
+          .from("ghl_locations")
+          .select("location_id, location_name, status")
+          .eq("org_id", orgId)
+          .order("location_name", { ascending: true }),
+      ]);
+
+      if (integrationsRes.data) {
+        setConnected(new Set(integrationsRes.data.map((r: { provider: string }) => r.provider)));
+      }
+      if (locationsRes.data) setGhlLocations(locationsRes.data);
       setLoadingConnected(false);
     }
     load();
@@ -202,6 +221,48 @@ export default function IntegrationsPage() {
           </div>
         );
       })}
+
+      {/* GHL sub-account locations — only shown when GHL agency is connected */}
+      {connected.has("ghl") && ghlLocations.length > 0 && (
+        <div className="mb-6">
+          <p className="text-[10px] font-medium text-[#a3a3a3] uppercase tracking-widest mb-1">
+            GHL Locations
+          </p>
+          <p className="text-[11px] text-[#a3a3a3] mb-3">
+            Connect each sub-account to pull live contacts, pipelines, and revenue.
+          </p>
+          <div className="border border-[#e5e5e5] rounded-lg overflow-hidden divide-y divide-[#e5e5e5]">
+            {ghlLocations.map((loc) => {
+              const isActive = loc.status === "active";
+              return (
+                <div key={loc.location_id} className="flex items-center justify-between px-4 py-3 bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-md bg-[#0ea5e9] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                      GHL
+                    </div>
+                    <span className="text-xs font-medium text-[#0a0a0a]">{loc.location_name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isActive ? (
+                      <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                        Connected
+                      </span>
+                    ) : (
+                      <a
+                        href={`/api/integrations/loc/connect?locationId=${loc.location_id}`}
+                        className="text-[11px] font-medium text-white bg-[#0a0a0a] px-3 py-1 rounded-md hover:bg-[#262626] transition-colors"
+                      >
+                        Connect
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <motion.p
         initial={{ opacity: 0 }}

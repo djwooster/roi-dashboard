@@ -242,6 +242,57 @@ export const pipelineStages: PipelineStage[] = [
   { name: "Closed Lost", count: 45, value: 495000 },
 ];
 
+// Mock pipeline leaderboard data — used by PipelineLeaderboard in demo mode.
+// Represents three distinct funnels an agency client might run simultaneously.
+// Ordered by close rate descending (same sort applied to real data server-side).
+export const mockPipelines = [
+  {
+    pipelineName: "Home Services — Inbound",
+    stages: [
+      { name: "New Lead", count: 312 },
+      { name: "Appointment Set", count: 228 },
+      { name: "Appointment Complete", count: 184 },
+      { name: "Proposal Sent", count: 142 },
+      { name: "Closed Won", count: 97 },
+    ],
+    wonCount: 97,
+    lostCount: 45,
+    wonRevenue: 1062000,
+    closeRate: 68,
+    avgDealValue: 10948,
+  },
+  {
+    pipelineName: "Remodeling — Outbound",
+    stages: [
+      { name: "New Lead", count: 188 },
+      { name: "Contacted", count: 134 },
+      { name: "Appointment Set", count: 88 },
+      { name: "Proposal Sent", count: 61 },
+      { name: "Closed Won", count: 38 },
+    ],
+    wonCount: 38,
+    lostCount: 29,
+    wonRevenue: 532000,
+    closeRate: 57,
+    avgDealValue: 14000,
+  },
+  {
+    pipelineName: "Windows & Doors — Cold",
+    stages: [
+      { name: "New Lead", count: 410 },
+      { name: "Contacted", count: 248 },
+      { name: "Appointment Set", count: 104 },
+      { name: "Proposal Sent", count: 58 },
+      { name: "Closed Won", count: 21 },
+    ],
+    wonCount: 21,
+    lostCount: 41,
+    wonRevenue: 231000,
+    closeRate: 34,
+    avgDealValue: 11000,
+  },
+];
+
 export const campaignBreakdown: CampaignBreakdown = {
   google: [
     { name: "Brand — Exact Match", leads: 94, spend: 4200, revenue: 218000 },
