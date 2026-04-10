@@ -59,15 +59,6 @@ const INTEGRATIONS: Integration[] = [
     bg: "#1877f2",
   },
   {
-    id: "google",
-    provider: "google",
-    name: "Google Ads",
-    description: "Track conversions, spend, and keyword-level CPL in real time.",
-    category: "Advertising",
-    letter: "G",
-    bg: "#4285f4",
-  },
-  {
     id: "jobber",
     provider: "jobber",
     name: "Jobber",

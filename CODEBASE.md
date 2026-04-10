@@ -25,6 +25,7 @@ Keep this updated when adding routes, components, or lib files.
 | `/api/stripe/checkout` | POST | user session | Creates Stripe Checkout session. Validates stored customer ID before reuse. |
 | `/api/stripe/portal` | POST | user session | Creates Stripe Customer Portal session for billing self-service. |
 | `/api/webhooks/stripe` | POST | Stripe sig | Handles `checkout.session.completed`, `subscription.updated`, `subscription.deleted`, `invoice.payment_failed`. Updates org + user metadata. |
+| `/api/appointments/confirm` | POST | report token | Upserts show/no-show outcome to `appointment_confirmations`. Auth via report token (no session required). |
 | `/api/invites` | — | — | Stub — invite flow not yet built. |
 
 ---
@@ -87,8 +88,9 @@ Keep this updated when adding routes, components, or lib files.
 | `components/SourceDrawer.tsx` | Right slide-in drawer for source drill-down. Demo only for now — `onSelectSource` not passed in real mode. |
 | `components/TrendChart.tsx` | Trend sparkline chart. Demo only — needs week-over-week data from `metrics` (TODO #7). |
 | `components/RevenueChart.tsx` | Revenue bar chart. Demo only — needs time-series data from `metrics` (TODO #7). |
+| `components/FunnelSnapshot.tsx` | Lead → Booked → Showed → Paid funnel. Dashboard main view. Demo: mock med spa numbers + guarantee badge. Live: from `ghlData`. |
+| `components/AppointmentConfirmList.tsx` | `"use client"` — appointment list with Showed/No Show buttons. Used on report page. Auth via report token. |
 | `components/CampaignTables.tsx` | Campaign breakdown tables. Demo only — needs time-series data from `metrics` (TODO #7). |
-| `components/LiveTicker.tsx` | Animated ticker at top of dashboard. |
 | `components/landing/` | Landing page components (Hero, Nav, PricingSection, etc.). |
 
 ---
@@ -105,6 +107,7 @@ Keep this updated when adding routes, components, or lib files.
 | `reports` | Shareable report links. One per org today; needs `(org_id, location_id)` unique constraint once per-client report URLs are built (TODO #3). Token = access control. |
 | `ghl_locations` | GHL sub-account locations synced after agency OAuth. One row per location per org. Empty for single-location connections — sync route falls back to `integrations.provider_user_id` when empty. |
 | `metrics` | Hourly KPI snapshots written by the cron job. One row per `(org_id, location_id, provider, period_label)`. Read by `/api/ghl/sync` as a cache layer before hitting GHL live. |
+| `appointment_confirmations` | Show/no-show confirmations from med spa owners. Written by `POST /api/appointments/confirm` (token auth). `outcome` = `showed` or `no_show`. **Requires SQL migration — see TODO 1a.** |
 
 ---
 

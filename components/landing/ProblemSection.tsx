@@ -19,7 +19,7 @@ const problems = [
   {
     number: "01",
     headline: "5 tabs to answer 1 question",
-    body: "Switching between Google Ads, Meta, your CRM, and a spreadsheet every time a client asks how their campaigns are performing.",
+    body: "Switching between Meta, your CRM, and a spreadsheet every time a client asks how their campaigns are performing.",
   },
   {
     number: "02",

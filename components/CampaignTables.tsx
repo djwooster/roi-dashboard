@@ -84,7 +84,6 @@ export default function CampaignTables() {
     >
       <h2 className="text-sm font-semibold text-[#0a0a0a] mb-3">Campaign Breakdown</h2>
       <div className="flex gap-3">
-        <CampaignTable title="Google Ads" campaigns={campaignBreakdown.google} accentColor="#4285F4" demo={demo} />
         <CampaignTable title="Facebook Ads" campaigns={campaignBreakdown.facebook} accentColor="#1877F2" demo={demo} />
       </div>
     </motion.div>

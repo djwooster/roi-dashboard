@@ -64,7 +64,7 @@ const features = [
     icon: <PlugIcon />,
     label: "Deep integrations",
     headline: "Connect in minutes.",
-    body: "GoHighLevel, HubSpot, Salesforce, Facebook Ads, Google Ads, Jobber — all talking to each other, all in one place. More integrations shipping regularly.",
+    body: "GoHighLevel, Facebook Ads, HubSpot, Salesforce, Jobber — all talking to each other, all in one place. More integrations shipping regularly.",
   },
 ];
 

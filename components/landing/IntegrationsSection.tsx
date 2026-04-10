@@ -45,13 +45,6 @@ const integrations = [
     description: "Ingest campaign spend, impressions, and lead form data.",
   },
   {
-    abbr: "G",
-    color: "#6366F1",
-    name: "Google Ads",
-    category: "Advertising",
-    description: "Track conversions, spend, and keyword-level CPL in real time.",
-  },
-  {
     abbr: "J",
     color: "#4ADE80",
     name: "Jobber",

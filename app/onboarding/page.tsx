@@ -16,7 +16,6 @@ const ROLES = [
 const TEAM_SIZES = ["Just me", "2–5", "6–15", "16–50", "50+"];
 
 const CHANNELS = [
-  { id: "google_ads", label: "Google Ads" },
   { id: "facebook_ads", label: "Facebook / Meta Ads" },
   { id: "lsa", label: "Local Service Ads (LSA)" },
   { id: "seo", label: "Organic / SEO" },

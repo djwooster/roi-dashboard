@@ -1,4 +1,4 @@
-export type OAuthProvider = "google" | "facebook" | "ghl" | "hubspot" | "salesforce" | "jobber";
+export type OAuthProvider = "facebook" | "ghl" | "hubspot" | "salesforce" | "jobber";
 
 type ProviderConfig = {
   authUrl: string;
@@ -13,13 +13,6 @@ type ProviderConfig = {
 };
 
 export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
-  google: {
-    authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-    tokenUrl: "https://oauth2.googleapis.com/token",
-    scopes: ["https://www.googleapis.com/auth/adwords"],
-    clientIdEnv: "GOOGLE_CLIENT_ID",
-    clientSecretEnv: "GOOGLE_CLIENT_SECRET",
-  },
   facebook: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",

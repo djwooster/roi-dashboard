@@ -80,7 +80,7 @@ Ad → **Lead** (opt-in) → **Appointment Booked** (via GHL calendar) → **Sho
 
 ## Dashboard Data Flow
 - Dashboard (`app/dashboard/page.tsx`) is `"use client"` — fetches integration data on mount via `fetch("/api/{provider}/insights")`
-- Real data is passed as props to `KPIBar` and `SourceTable` (`metaData`, etc.)
+- Real data is passed as props to `KPIBar`, `FunnelSnapshot`, etc. (`metaData`, `ghlData`)
 - Components show "—" with `text-[#d4d4d4]` for missing values; real values use `text-[#0a0a0a]`
 - `SourceDrawer` drill-down is demo-only for now — only pass `onSelectSource` when `useDemoMode()` is true
 
@@ -96,20 +96,12 @@ Ad → **Lead** (opt-in) → **Appointment Booked** (via GHL calendar) → **Sho
 - `ease` must be typed as a tuple: `const EASE: [number, number, number, number] = [0.25, 0.1, 0.25, 1]`
 
 ## Code Comments
-Every file should be commented as if a contract developer is reading it for the first time.
-Comments should explain **why** decisions were made, not just what the code does.
+Comment every file for a contract developer: explain **why** decisions were made (why admin vs user client, why a workaround exists, why something is inside/outside try-catch). When touching an uncommented file, add comments.
 
-Good comment targets:
-- Why a specific client (admin vs user-scoped) is used
-- Why a workaround or non-obvious pattern exists (e.g. the `emailRedirectTo` proxy workaround)
-- Why an event or status maps the way it does
-- Why something is outside a try/catch (or inside one)
-- Any Stripe, Supabase, or Next.js quirk that isn't obvious from the docs
-
-When touching an existing file that lacks comments, add them — don't leave it uncommented just because it wasn't written that way originally.
+## Workflow
+- Do **not** commit or push after every task — the user tests in dev first and commits explicitly.
 
 ## Reference Files
-- `CODEBASE.md` — **start here**. Full map of every route, page, lib file, component, and DB table. Check before reading files or creating new ones.
-- `TODO.md` — implementation task list with context on what's built vs. pending
-- `.env.example` — all required environment variables with descriptions
-- `lib/oauth-config.ts` — single source of truth for all OAuth provider configs
+- `CODEBASE.md` — full map of routes, pages, lib files, components, DB tables. Check before creating files.
+- `TODO.md` — active task list
+- `lib/oauth-config.ts` — single source of truth for OAuth provider configs

@@ -158,7 +158,7 @@ export default function KPIBar({
 
     const liveCards: { label: string; value: string | null; sublabel: string }[] = [
       { label: "Revenue Generated", value: revenue > 0 ? fmtMoney(revenue) : null,       sublabel: "Closed won deals" },
-      { label: "Ad Spend",          value: spend > 0   ? fmtMoney(spend)   : null,       sublabel: "Meta + Google ads" },
+      { label: "Ad Spend",          value: spend > 0   ? fmtMoney(spend)   : null,       sublabel: "Meta ad spend" },
       { label: "Net Profit",        value: revenue > 0 || spend > 0 ? fmtMoney(profit) : null, sublabel: "After ad spend" },
       { label: "New Clients",       value: wonCount > 0 ? wonCount.toLocaleString() : null, sublabel: "Confirmed paying clients" },
       { label: "ROAS",              value: roas > 0    ? `${roas.toFixed(1)}x`     : null, sublabel: "Return on ad spend" },

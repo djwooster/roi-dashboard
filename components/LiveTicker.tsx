@@ -3,13 +3,11 @@
 import { useRef } from "react";
 
 const messages = [
-  "3 new leads from Google Ads in the last hour",
+  "3 new leads from Meta Ads in the last hour",
   "Facebook ROAS dropped below 2x · Review campaign budgets",
-  "Home Show CPL improved 18% this week",
+  "2 appointments confirmed showed today · Show rate 68%",
   "Referral channel closed 4 new jobs overnight · Avg deal $9,800",
-  "iPad Kiosk — Lowe's #0847 booked 6 appointments today",
-  "Google Brand campaign approaching monthly spend cap",
-  "New proposal sent to lead from Organic Search · Est. value $11,200",
+  "New GHL opportunity created · Est. value $11,200",
   "Appointment complete rate up 6pts month-over-month",
 ];
 

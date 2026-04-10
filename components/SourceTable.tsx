@@ -10,7 +10,6 @@ import type { GHLSyncResponse } from "@/app/api/ghl/sync/route";
 // ── Shared ────────────────────────────────────────────────────────────────────
 
 const SOURCES = [
-  { id: "google", name: "Google Ads", color: "#4285f4" },
   { id: "facebook", name: "Facebook Ads", color: "#1877f2" },
   { id: "ghl", name: "GoHighLevel", color: "#0ea5e9" },
   { id: "hubspot", name: "HubSpot", color: "#ff7a59" },

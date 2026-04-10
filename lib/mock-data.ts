@@ -28,7 +28,6 @@ export type Campaign = {
 };
 
 export type CampaignBreakdown = {
-  google: Campaign[];
   facebook: Campaign[];
 };
 
@@ -50,16 +49,6 @@ export const dateRangeMultipliers: Record<DateRange, number> = {
 };
 
 export const leadSources: LeadSource[] = [
-  {
-    id: "google",
-    name: "Google Ads",
-    leads: 284,
-    spend: 18400,
-    appointments: 196,
-    closedRevenue: 612000,
-    avgDealValue: 8500,
-    color: "#525252",
-  },
   {
     id: "facebook",
     name: "Facebook Ads",
@@ -115,16 +104,6 @@ export const leadSources: LeadSource[] = [
 // Last period data for comparison mode
 export const lastPeriodSources: LeadSource[] = [
   {
-    id: "google",
-    name: "Google Ads",
-    leads: 251,
-    spend: 16800,
-    appointments: 174,
-    closedRevenue: 538000,
-    avgDealValue: 8200,
-    color: "#525252",
-  },
-  {
     id: "facebook",
     name: "Facebook Ads",
     leads: 168,
@@ -179,7 +158,6 @@ export const lastPeriodSources: LeadSource[] = [
 export const monthlyTrend: MonthlyData[] = [
   {
     month: "Oct",
-    "Google Ads": 38,
     "Facebook Ads": 28,
     "Home Show": 6,
     Referral: 19,
@@ -188,7 +166,6 @@ export const monthlyTrend: MonthlyData[] = [
   },
   {
     month: "Nov",
-    "Google Ads": 42,
     "Facebook Ads": 31,
     "Home Show": 0,
     Referral: 22,
@@ -197,7 +174,6 @@ export const monthlyTrend: MonthlyData[] = [
   },
   {
     month: "Dec",
-    "Google Ads": 35,
     "Facebook Ads": 24,
     "Home Show": 0,
     Referral: 26,
@@ -206,7 +182,6 @@ export const monthlyTrend: MonthlyData[] = [
   },
   {
     month: "Jan",
-    "Google Ads": 44,
     "Facebook Ads": 32,
     "Home Show": 14,
     Referral: 21,
@@ -215,7 +190,6 @@ export const monthlyTrend: MonthlyData[] = [
   },
   {
     month: "Feb",
-    "Google Ads": 58,
     "Facebook Ads": 40,
     "Home Show": 22,
     Referral: 28,
@@ -224,7 +198,6 @@ export const monthlyTrend: MonthlyData[] = [
   },
   {
     month: "Mar",
-    "Google Ads": 67,
     "Facebook Ads": 43,
     "Home Show": 45,
     Referral: 26,
@@ -294,11 +267,6 @@ export const mockPipelines = [
 ];
 
 export const campaignBreakdown: CampaignBreakdown = {
-  google: [
-    { name: "Brand — Exact Match", leads: 94, spend: 4200, revenue: 218000 },
-    { name: "Windows — Competitor", leads: 112, spend: 8600, revenue: 264000 },
-    { name: "Doors — Local Intent", leads: 78, spend: 5600, revenue: 130000 },
-  ],
   facebook: [
     { name: "Spring Promo — Retarget", leads: 72, spend: 3100, revenue: 148000 },
     { name: "Lookalike — Past Buyers", leads: 84, spend: 4200, revenue: 136000 },
@@ -351,7 +319,7 @@ export const sourceSubChannels: Record<string, SubChannel[]> = {
 // These numbers are calibrated to the agency's real-world guarantee:
 // 15 high-ticket sales in 30 days from paid lead gen (Hormozi-style offer).
 export const mockFunnel = {
-  leads: 247,    // total opt-ins from Meta/Google ads
+  leads: 247,    // total opt-ins from Meta ads
   booked: 89,    // 36% booking rate (industry avg for med spa offers)
   showed: 61,    // 69% show rate (after booking)
   paid: 15,      // 25% close rate from showed — the guarantee target
