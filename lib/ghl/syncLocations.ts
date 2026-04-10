@@ -29,7 +29,7 @@ export async function syncGHLLocations(
   companyId: string,
   accessToken: string
 ): Promise<void> {
-  const res = await ghlFetch(`/locations/?companyId=${companyId}`, accessToken);
+  const res = await ghlFetch(`/locations/search?companyId=${companyId}`, accessToken);
 
   if (!res.ok) {
     const body = await res.text().catch(() => "(no body)");
