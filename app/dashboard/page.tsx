@@ -12,7 +12,7 @@ import FunnelSnapshot from "@/components/FunnelSnapshot";
 // import TrendChart from "@/components/TrendChart";
 // PipelineFunnel commented out — will revisit once per-location data is flowing
 // import PipelineFunnel from "@/components/PipelineFunnel";
-import CampaignTables from "@/components/CampaignTables";
+import TopCampaigns from "@/components/TopCampaigns";
 import PipelineLeaderboard from "@/components/PipelineLeaderboard";
 import LiveTicker from "@/components/LiveTicker";
 import IntegrationsPage from "@/components/IntegrationsPage";
@@ -264,7 +264,7 @@ export default function Dashboard() {
                 {/* PipelineFunnel commented out — re-enable once per-location data flows */}
                 {/* <PipelineFunnel pipelines={ghlData?.pipelines ?? []} loading={loading} /> */}
                 <PipelineLeaderboard pipelines={ghlData?.pipelines ?? []} loading={loading} />
-                <CampaignTables />
+                <TopCampaigns />
               </motion.div>
             ) : isIntegrations ? (
               <motion.div

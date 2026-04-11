@@ -24,20 +24,20 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
   ghl: {
     authUrl: "https://marketplace.gohighlevel.com/oauth/chooselocation",
     tokenUrl: "https://services.leadconnectorhq.com/oauth/token",
-    // companies.readonly + locations.readonly are agency-level scopes — they unlock
-    // companyId in the token response and allow sub-account enumeration via syncLocations.
-    // contacts.readonly + opportunities.readonly are NOT valid for agency apps (GHL
-    // enforces scope separation by app type). Instead, the sync route exchanges the
-    // company token for a location-scoped token on each data fetch via getLocationToken.
+    // Sub-account scopes — one app, one OAuth flow per location.
+    // GHL's chooselocation screen lets the user pick which sub-account to connect;
+    // the resulting token is scoped to that location only.
+    // calendars.readonly is included for appointment data (booked/showed counts).
     scopes: [
-      "companies.readonly",
-      "locations.readonly",
+      "contacts.readonly",
+      "opportunities.readonly",
+      "calendars.readonly",
     ],
     clientIdEnv: "GHL_CLIENT_ID",
     clientSecretEnv: "GHL_CLIENT_SECRET",
-    // GHL returns either companyId (agency mode) or locationId (single-location mode)
-    // in the token response. We handle the priority in oauth-callback.ts because we
-    // need to branch behavior (location sync vs. simple store), not just pick a field.
+    // Sub-account token response always includes locationId (not companyId).
+    // oauth-callback.ts uses this to store the token in both integrations and
+    // ghl_locations so the client switcher picks it up automatically.
     tokenResponseIdField: "locationId",
   },
   hubspot: {

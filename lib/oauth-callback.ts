@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { OAUTH_PROVIDERS, getCallbackUrl, type OAuthProvider } from "@/lib/oauth-config";
-import { syncGHLLocations } from "@/lib/ghl/syncLocations";
 
 export async function handleOAuthCallback(request: NextRequest, provider: OAuthProvider) {
   const config = OAUTH_PROVIDERS[provider];
@@ -73,13 +73,10 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
 
   let providerUserId: string | null = null;
   if (provider === "ghl") {
-    // GHL agency OAuth: token response includes companyId (agency-level connection).
-    // Single-location OAuth: only locationId is present.
-    // We prefer companyId so the integration row represents the whole agency account.
-    // After storing tokens, we sync all sub-account locations into ghl_locations.
-    const companyId = typeof tokens.companyId === "string" ? tokens.companyId : null;
-    const locationId = typeof tokens.locationId === "string" ? tokens.locationId : null;
-    providerUserId = companyId ?? locationId;
+    // Sub-account OAuth: token response includes locationId (the connected sub-account).
+    // Store it as provider_user_id so the sync route can fall back to it when
+    // ghl_locations is empty (e.g. first connect before the row is visible in the query).
+    providerUserId = typeof tokens.locationId === "string" ? tokens.locationId : null;
   } else if (config.tokenResponseIdField) {
     const val = tokens[config.tokenResponseIdField];
     providerUserId = typeof val === "string" ? val : null;
@@ -108,17 +105,33 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
     { onConflict: "org_id,provider" }
   );
 
-  // After a GHL agency connect, enumerate all sub-account locations and store
-  // them in ghl_locations. This is what enables the client switcher.
-  // We only do this when companyId is in the token response — single-location
-  // connects skip this and the sync route falls back to provider_user_id.
-  if (provider === "ghl" && typeof tokens.companyId === "string") {
+  // After a GHL sub-account connect, upsert the location token into ghl_locations.
+  // This makes the connected location immediately visible in the client switcher
+  // without any additional manual steps.
+  //
+  // Why admin client: the OAuth callback has the user's session cookie (browser
+  // preserves it across redirects), but ghl_locations RLS may be restrictive.
+  // Admin bypasses RLS here, which is safe — we've already validated identity
+  // via the signed state param + nonce cookie above.
+  if (provider === "ghl" && typeof tokens.locationId === "string") {
+    const admin = createAdminClient();
     try {
-      await syncGHLLocations(parsedState.orgId, tokens.companyId, tokens.access_token);
+      await admin.from("ghl_locations").upsert(
+        {
+          org_id: parsedState.orgId,
+          location_id: tokens.locationId,
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token ?? null,
+          token_expires_at: tokenExpiresAt,
+          status: "active",
+        },
+        { onConflict: "org_id,location_id" }
+      );
     } catch (err) {
-      // Location sync is best-effort — the integration itself is already saved.
-      // Log the error but don't fail the entire OAuth flow over it.
-      console.error("[GHL] location sync failed after connect:", err);
+      // Best-effort — integration row is already saved. Dashboard will still
+      // work via the provider_user_id fallback; location switcher just won't
+      // show the entry until the next connect or page refresh.
+      console.error("[GHL] ghl_locations upsert failed after connect:", err);
     }
   }
 

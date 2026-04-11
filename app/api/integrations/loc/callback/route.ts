@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl.toString());
   }
 
-  const clientId = process.env.GHL_SUBACCOUNT_CLIENT_ID!;
-  const clientSecret = process.env.GHL_SUBACCOUNT_CLIENT_SECRET!;
+  const clientId = process.env.GHL_CLIENT_ID!;
+  const clientSecret = process.env.GHL_CLIENT_SECRET!;
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const callbackUrl = `${base}/api/integrations/loc/callback`;
 

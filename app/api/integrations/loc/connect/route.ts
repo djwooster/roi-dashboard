@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing locationId" }, { status: 400 });
   }
 
-  const clientId = process.env.GHL_SUBACCOUNT_CLIENT_ID;
+  const clientId = process.env.GHL_CLIENT_ID;
   if (!clientId) {
     return NextResponse.redirect(
       new URL("/dashboard?page=integrations&error=provider_not_configured", request.url)
