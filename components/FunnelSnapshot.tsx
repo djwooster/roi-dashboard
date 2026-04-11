@@ -18,6 +18,7 @@ import { useDemoMode } from "@/lib/demo-context";
 import { mockFunnel } from "@/lib/mock-data";
 import type { GHLSyncResponse } from "@/lib/ghl/types";
 import type { MetaInsightsResponse } from "@/app/api/meta/insights/route";
+import { Badge } from "@/components/ui/badge";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,12 +38,12 @@ function conversionRate(from: number, to: number): string | null {
 type StageProps = {
   label: string;
   count: number | null; // null = no data yet
-  descriptor: string;
-  costPer?: string | null;
+  rate?: string | null; // conversion rate to the next stage; omit for the last stage
   index: number;
 };
 
-function StageCard({ label, count, descriptor, costPer, index }: StageProps) {
+// The badge sits inline to the right of the count, vertically centered with it.
+function StageCard({ label, count, rate, index }: StageProps) {
   const hasData = count !== null && count > 0;
   return (
     <motion.div
@@ -54,44 +55,16 @@ function StageCard({ label, count, descriptor, costPer, index }: StageProps) {
       <p className="text-[11px] font-medium text-[#a3a3a3] uppercase tracking-wider mb-1.5">
         {label}
       </p>
-      <p className={`text-3xl font-bold tracking-tight leading-none tabular-nums ${hasData ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
-        {count !== null ? count.toLocaleString() : "—"}
-      </p>
-      <p className="text-[11px] text-[#a3a3a3] mt-1">{descriptor}</p>
-      {costPer && (
-        <p className="text-[11px] font-medium text-[#525252] mt-0.5">{costPer} each</p>
-      )}
-    </motion.div>
-  );
-}
-
-type ArrowProps = {
-  rate: string | null; // e.g. "36%"
-  label: string;       // e.g. "booking rate"
-  index: number;
-};
-
-function ConversionArrow({ rate, label, index }: ArrowProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3, delay: index * 0.06 + 0.1, ease: "easeOut" }}
-      className="flex flex-col items-center justify-center px-2 shrink-0"
-    >
-      <p className={`text-sm font-semibold ${rate ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
-        {rate ?? "—"}
-      </p>
-      <svg width="20" height="12" viewBox="0 0 20 12" fill="none" className="my-0.5">
-        <path
-          d="M0 6h17M13 1l5 5-5 5"
-          stroke={rate ? "#a3a3a3" : "#e5e5e5"}
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <p className="text-[10px] text-[#d4d4d4] whitespace-nowrap">{label}</p>
+      <div className="flex items-center gap-2">
+        <p className={`text-3xl font-bold tracking-tight leading-none tabular-nums ${hasData ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
+          {count !== null ? count.toLocaleString() : "—"}
+        </p>
+        {rate !== undefined && (
+          <Badge variant="secondary" className="text-xs font-semibold">
+            {rate ?? "—"}
+          </Badge>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -165,11 +138,6 @@ export default function FunnelSnapshot({ ghlData, metaData, loading }: FunnelSna
   if (demo) {
     const { leads, booked, showed, paid, spend, guaranteeTarget, daysElapsed, daysTotal } = mockFunnel;
 
-    const cpl   = spend > 0 && leads > 0   ? fmtMoney(spend / leads)   : null;
-    const cpb   = spend > 0 && booked > 0  ? fmtMoney(spend / booked)  : null;
-    const cps   = spend > 0 && showed > 0  ? fmtMoney(spend / showed)  : null;
-    const cpp   = spend > 0 && paid > 0    ? fmtMoney(spend / paid)    : null;
-
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -184,13 +152,10 @@ export default function FunnelSnapshot({ ghlData, metaData, loading }: FunnelSna
 
         {/* Funnel stages */}
         <div className="flex items-center">
-          <StageCard label="Leads"  count={leads}  descriptor="Opt-ins from ads" costPer={cpl}  index={0} />
-          <ConversionArrow rate={conversionRate(leads, booked)} label="booking rate" index={1} />
-          <StageCard label="Booked" count={booked} descriptor="Appointments set"  costPer={cpb}  index={2} />
-          <ConversionArrow rate={conversionRate(booked, showed)} label="show rate" index={3} />
-          <StageCard label="Showed" count={showed} descriptor="Confirmed arrives"  costPer={cps}  index={4} />
-          <ConversionArrow rate={conversionRate(showed, paid)} label="close rate" index={5} />
-          <StageCard label="Paid"   count={paid}   descriptor="High-ticket sales"  costPer={cpp}  index={6} />
+          <StageCard label="Leads"  count={leads}                                          index={0} />
+          <StageCard label="Booked" count={booked} rate={conversionRate(leads, booked)}  index={1} />
+          <StageCard label="Showed" count={showed} rate={conversionRate(booked, showed)} index={2} />
+          <StageCard label="Paid"   count={paid}   rate={conversionRate(showed, paid)}   index={3} />
         </div>
 
         {/* Guarantee progress */}
@@ -210,11 +175,6 @@ export default function FunnelSnapshot({ ghlData, metaData, loading }: FunnelSna
   const showed  = ghlData?.showedCount ?? 0;
   const paid    = ghlData?.wonCount ?? 0;
   const spend   = metaData?.totals.spend ?? 0;
-
-  const cpl  = spend > 0 && leads > 0  ? fmtMoney(spend / leads)  : null;
-  const cpb  = spend > 0 && booked > 0 ? fmtMoney(spend / booked) : null;
-  const cps  = spend > 0 && showed > 0 ? fmtMoney(spend / showed) : null;
-  const cpp  = spend > 0 && paid > 0   ? fmtMoney(spend / paid)   : null;
 
   // If no GHL data yet, show a helpful placeholder rather than all zeros
   if (!ghlData) {
@@ -241,13 +201,10 @@ export default function FunnelSnapshot({ ghlData, metaData, loading }: FunnelSna
       </div>
 
       <div className="flex items-center">
-        <StageCard label="Leads"  count={leads > 0 ? leads : null}   descriptor="Total contacts"   costPer={cpl}  index={0} />
-        <ConversionArrow rate={booked > 0 ? conversionRate(leads, booked) : null} label="booking rate" index={1} />
-        <StageCard label="Booked" count={booked > 0 ? booked : null}  descriptor="Appointments set"  costPer={cpb}  index={2} />
-        <ConversionArrow rate={showed > 0 ? conversionRate(booked, showed) : null} label="show rate" index={3} />
-        <StageCard label="Showed" count={showed > 0 ? showed : null}  descriptor="Confirmed arrives"  costPer={cps}  index={4} />
-        <ConversionArrow rate={paid > 0 ? conversionRate(showed, paid) : null} label="close rate" index={5} />
-        <StageCard label="Paid"   count={paid > 0 ? paid : null}      descriptor="High-ticket sales"  costPer={cpp}  index={6} />
+        <StageCard label="Leads"  count={leads > 0 ? leads : null}                                                               index={0} />
+        <StageCard label="Booked" count={booked > 0 ? booked : null}  rate={booked > 0 ? conversionRate(leads, booked) : null}  index={1} />
+        <StageCard label="Showed" count={showed > 0 ? showed : null}  rate={showed > 0 ? conversionRate(booked, showed) : null} index={2} />
+        <StageCard label="Paid"   count={paid > 0 ? paid : null}      rate={paid > 0 ? conversionRate(showed, paid) : null}    index={3} />
       </div>
 
       {/* Note explaining empty stages */}

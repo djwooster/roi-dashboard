@@ -11,6 +11,9 @@ All of these are working code, not yet committed:
 - **GHL one-auth consolidation** — single sub-account app replaces agency app; `oauth-config.ts` updated to use `GHL_SUBACCOUNT_CLIENT_ID/SECRET` + sub-account scopes; `oauth-callback.ts` auto-upserts `ghl_locations` on connect; `IntegrationsPage` simplified
 - **Top Campaigns section** — `components/TopCampaigns.tsx` + `GET /api/meta/campaigns` (campaign-level Meta breakdown, sorted by leads); replaces demo-only `CampaignTables` in dashboard
 - **SQL migration** — `appointment_confirmations` table created; `ghl_locations` token columns added
+- **FunnelSnapshot redesign** — conversion rates now show as shadcn badges on the destination stage (Booked/Showed/Paid), descriptor and cost-per labels removed for cleaner layout
+- **CODEBASE.md audit script** — `scripts/check-codebase.mjs` + git pre-commit hook; blocks commits when CODEBASE.md drifts from filesystem; `npm run check-codebase` to run manually
+- **shadcn/ui initialized** — `components/ui/badge.tsx` + `components/ui/button.tsx` added; `lib/utils.ts` generated
 
 ---
 
@@ -65,3 +68,4 @@ Demo: mock med spa numbers (247→89→61→15) + guarantee badge. Live: from `g
 - **Report page: use metrics cache** — `fetchLocationData` called live on every visit. Wire to `metrics` cache before falling back.
 - **Vercel Pro: restore hourly cron** — change `vercel.json` to `"0 * * * *"` and `CACHE_STALE_MS` back to `2h`.
 - **Pre-push build check** — add git pre-push hook: `npm run build` must pass.
+- **CODEBASE.md drift check** — ✅ done via pre-commit hook + `npm run check-codebase`.
