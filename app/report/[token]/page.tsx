@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { getValidGHLToken } from "@/lib/ghl/getValidToken";
 import { getValidLocationToken } from "@/lib/ghl/getValidLocationToken";
-import { fetchLocationData } from "@/lib/ghl/fetchLocationData";
+import { fetchLocationData, type GHLDateRange } from "@/lib/ghl/fetchLocationData";
 import { fetchAppointments, getAppointmentContactName, getAppointmentDate } from "@/lib/ghl/fetchAppointments";
 import { generateReportSummary, type SummarySection } from "@/lib/ai/generateReportSummary";
 import AppointmentConfirmList, { type AppointmentItem } from "@/components/AppointmentConfirmList";
@@ -13,10 +15,214 @@ import type { GHLPipelineData, GHLSyncResponse } from "@/lib/ghl/types";
 // The token in the URL IS the access control: a 32-char random hex string that
 // is unguessable. Agencies share this URL once with their client — it always
 // shows live data, so they never need to resend it.
+//
+// ?week=YYYY-MM-DD (Monday of the week) toggles between weekly and all-time views.
+// Omitting the param defaults to all-time. Chevron links and "All time" button
+// are plain anchor tags — zero client JS needed for navigation.
 export const dynamic = "force-dynamic";
 
-// Module-level so it's not reallocated on every request.
 const SUMMARY_TTL_MS = 24 * 60 * 60 * 1000;
+
+// ── Meta types ────────────────────────────────────────────────────────────────
+// Declared locally — per codebase convention, types are not imported from route files.
+// Note: account discovery logic is duplicated from /api/meta/campaigns.
+// When a third server-side consumer appears, extract to lib/meta/accounts.ts.
+
+const GRAPH           = "https://graph.facebook.com/v19.0";
+const FOUNDER_BIZ_ID  = process.env.META_FOUNDER_BUSINESS_ID ?? "";
+const FOUNDER_ACCT_ID = process.env.META_FOUNDER_ACCOUNT_ID  ?? "";
+
+type InsightAction = { action_type: string; value: string };
+type CampaignRow   = {
+  campaign_name: string;
+  spend?:        string;
+  actions?:      InsightAction[];
+  action_values?: InsightAction[];
+};
+
+type MetaCampaign = {
+  name: string; spend: number; leads: number; revenue: number; cpl: number; roas: number;
+};
+
+type MetaReportData = {
+  campaigns:    MetaCampaign[];
+  totalLeads:   number;
+  totalSpend:   number;
+  totalRevenue: number;
+};
+
+// ── Week utilities ────────────────────────────────────────────────────────────
+
+// Build an ISO date string from local date parts to avoid UTC-offset surprises
+// when the server is in a different timezone from the client.
+function toISODate(d: Date): string {
+  const y   = d.getFullYear();
+  const m   = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Returns the Monday of the ISO week containing `date`, at local midnight.
+function getMondayOf(date: Date): Date {
+  const d   = new Date(date);
+  const dow = d.getDay(); // 0 = Sun
+  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// "Apr 7 – Apr 13, 2026"
+function formatWeekLabel(mondayStr: string): string {
+  const [y, m, day] = mondayStr.split("-").map(Number);
+  const monday = new Date(y, m - 1, day);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${fmt(monday)} – ${fmt(sunday)}, ${sunday.getFullYear()}`;
+}
+
+function shiftWeek(mondayStr: string, dir: "prev" | "next"): string {
+  const [y, m, d] = mondayStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + (dir === "next" ? 7 : -7));
+  return toISODate(date);
+}
+
+// Guard against malformed ?week= values (e.g. manual URL edits).
+// Accepts only YYYY-MM-DD that parses to a Monday.
+function isValidWeekParam(str: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) return false;
+  const [y, m, d] = str.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return !isNaN(date.getTime()) && date.getDay() === 1;
+}
+
+// ── Meta server-side fetch ────────────────────────────────────────────────────
+// Fetches Meta campaign data using the org's stored OAuth token — no user
+// session required. The public report page has admin DB access via report token.
+// dateRange = undefined → all-time (date_preset=maximum); defined → weekly filter.
+
+function sumActions(actions: InsightAction[] | undefined, type: string): number {
+  const match = actions?.find((a) => a.action_type === type);
+  return match ? parseFloat(match.value) : 0;
+}
+
+async function fetchMetaReportData(
+  orgId: string,
+  dateRange?: { from: string; to: string },
+): Promise<MetaReportData | null> {
+  const admin = createAdminClient();
+  const { data: integration } = await admin
+    .from("integrations")
+    .select("access_token")
+    .eq("org_id", orgId)
+    .eq("provider", "facebook")
+    .eq("status", "active")
+    .single();
+
+  if (!integration) return null;
+
+  const token      = integration.access_token;
+  const dateParams = dateRange
+    ? `&time_range=${encodeURIComponent(JSON.stringify({ since: dateRange.from, until: dateRange.to }))}`
+    : `&date_preset=maximum`;
+
+  try {
+    // Discover ad accounts — same pattern as /api/meta/campaigns.
+    // System user tokens may need the business/direct fallbacks; standard OAuth tokens use /me.
+    const accountReqs: Promise<Response>[] = [
+      fetch(`${GRAPH}/me/adaccounts?fields=id,account_status&access_token=${token}`),
+    ];
+    if (FOUNDER_BIZ_ID)
+      accountReqs.push(fetch(`${GRAPH}/${FOUNDER_BIZ_ID}/owned_ad_accounts?fields=id,account_status&access_token=${token}`));
+    if (FOUNDER_ACCT_ID)
+      accountReqs.push(fetch(`${GRAPH}/${FOUNDER_ACCT_ID}?fields=id,account_status&access_token=${token}`));
+
+    const accountResps = await Promise.all(accountReqs);
+    const [me, biz, direct] = await Promise.all(
+      accountResps.map((r) => r.json() as Promise<{
+        data?: Array<{ id: string; account_status: number }>;
+        id?: string; account_status?: number; error?: unknown;
+      }>)
+    );
+
+    type AdAcct = { id: string; account_status: number };
+    const allAccounts: AdAcct[] = [
+      ...(me.data ?? []),
+      ...(biz?.data ?? []),
+      ...(direct && !direct.error && direct.id
+        ? [{ id: direct.id, account_status: direct.account_status ?? 0 }]
+        : []),
+    ];
+
+    const seen = new Set<string>();
+    const active = allAccounts.filter((a) => {
+      if (seen.has(a.id) || a.account_status !== 1) return false;
+      seen.add(a.id);
+      return true;
+    });
+
+    const insightRows = (
+      await Promise.all(
+        active.map(async (a) => {
+          const r = await fetch(
+            `${GRAPH}/${a.id}/insights` +
+            `?level=campaign&fields=campaign_name,spend,actions,action_values&limit=50` +
+            dateParams +
+            `&access_token=${token}`,
+          );
+          const json = await r.json() as { data?: CampaignRow[] };
+          return json.data ?? [];
+        }),
+      )
+    ).flat();
+
+    const agg = new Map<string, MetaCampaign>();
+    for (const row of insightRows) {
+      const name    = row.campaign_name;
+      const spend   = parseFloat(row.spend ?? "0");
+      const leads   =
+        sumActions(row.actions,       "lead_generation") ||
+        sumActions(row.actions,       "lead")             ||
+        sumActions(row.actions,       "onsite_conversion.lead_grouped");
+      const revenue =
+        sumActions(row.action_values, "purchase")   ||
+        sumActions(row.action_values, "omni_purchase");
+
+      const ex = agg.get(name);
+      if (ex) {
+        ex.spend += spend; ex.leads += leads; ex.revenue += revenue;
+        ex.cpl  = ex.leads > 0 ? ex.spend   / ex.leads : 0;
+        ex.roas = ex.spend > 0 ? ex.revenue / ex.spend : 0;
+      } else {
+        agg.set(name, {
+          name, spend, leads, revenue,
+          cpl:  leads > 0 ? spend   / leads : 0,
+          roas: spend > 0 ? revenue / spend : 0,
+        });
+      }
+    }
+
+    const campaigns = [...agg.values()].sort((a, b) => b.leads - a.leads).slice(0, 10);
+    return {
+      campaigns,
+      totalLeads:   campaigns.reduce((s, c) => s + c.leads,   0),
+      totalSpend:   campaigns.reduce((s, c) => s + c.spend,   0),
+      totalRevenue: campaigns.reduce((s, c) => s + c.revenue, 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Formatting helpers ────────────────────────────────────────────────────────
+
+function fmtMoney(n: number): string {
+  if (n >= 10_000) return `$${(n / 1000).toFixed(1)}k`;
+  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+function fmtCPL (n: number): string { return n > 0 ? `$${n.toFixed(2)}`  : "—"; }
+function fmtROAS(n: number): string { return n > 0 ? `${n.toFixed(2)}x`  : "—"; }
 
 // ── Subcomponents ─────────────────────────────────────────────────────────────
 
@@ -29,9 +235,183 @@ function LiveDot() {
   );
 }
 
-// Compact funnel display used on the report page (vertical-friendly for mobile).
-// The dashboard FunnelSnapshot uses the horizontal layout; this is purpose-built
-// for the narrow mobile card design the agency sends to clients.
+// Week selector — server-rendered anchor links, zero client JS.
+// Only renders in weekly mode (currentWeek !== null); returns null in all-time mode.
+// The "All time" toggle lives in the page header instead (see below).
+// Chevrons are 36×36px for comfortable mobile tap targets.
+// The date uses flex-1 + text-center so it sits perfectly centered between the two chevrons.
+function WeekNav({ currentWeek, token }: { currentWeek: string | null; token: string }) {
+  // All-time mode — no date row to show; the header handles the toggle
+  if (!currentWeek) return null;
+
+  const base        = `/report/${token}`;
+  const todayMonday = toISODate(getMondayOf(new Date()));
+  const prevWeek    = shiftWeek(currentWeek, "prev");
+  const nextWeek    = shiftWeek(currentWeek, "next");
+  const canGoNext   = nextWeek <= todayMonday;
+
+  const LEFT  = "M7.5 9L4.5 6L7.5 3";
+  const RIGHT = "M4.5 9L7.5 6L4.5 3";
+  const chevronBase = "w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-[#e5e5e5] transition-colors";
+
+  return (
+    <div className="flex items-center mb-6">
+      {/* Prev — always enabled */}
+      <a
+        href={`${base}?week=${prevWeek}`}
+        aria-label="Previous week"
+        className={cn(chevronBase, "hover:bg-[#f5f5f5]")}
+      >
+        <svg width="16" height="16" viewBox="0 0 12 12" fill="none">
+          <path d={LEFT} stroke="#525252" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </a>
+
+      {/* flex-1 + text-center perfectly centers the label between the two fixed-width chevrons */}
+      <span className="flex-1 text-center text-xl font-bold text-[#0a0a0a] px-3">
+        {formatWeekLabel(currentWeek)}
+      </span>
+
+      {/* Next — dimmed when already at the current week */}
+      {canGoNext ? (
+        <a
+          href={`${base}?week=${nextWeek}`}
+          aria-label="Next week"
+          className={cn(chevronBase, "hover:bg-[#f5f5f5]")}
+        >
+          <svg width="16" height="16" viewBox="0 0 12 12" fill="none">
+            <path d={RIGHT} stroke="#525252" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </a>
+      ) : (
+        <span className={cn(chevronBase, "opacity-20 cursor-not-allowed")} aria-disabled="true">
+          <svg width="16" height="16" viewBox="0 0 12 12" fill="none">
+            <path d={RIGHT} stroke="#525252" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Ad performance summary — total leads, spend, CPL, ROAS for the period.
+// meta === null means the Meta integration isn't connected; show a dashed placeholder.
+// ROAS shows "—" when revenue isn't tracked in Meta (common for med spas without pixel purchase events).
+function MetaSummaryBar({ meta }: { meta: MetaReportData | null }) {
+  if (!meta) {
+    return (
+      <div className="rounded-xl border border-dashed border-[#e5e5e5] bg-[#fafafa] px-5 py-4 mb-8">
+        <p className="text-[11px] font-semibold text-[#d4d4d4] uppercase tracking-wide mb-1">Ad Performance</p>
+        <p className="text-sm text-[#d4d4d4]">
+          Meta Ads not yet connected — campaign metrics will appear here.
+        </p>
+      </div>
+    );
+  }
+
+  const { totalLeads, totalSpend, totalRevenue } = meta;
+  const cpl  = totalLeads > 0 ? totalSpend   / totalLeads : 0;
+  const roas = totalSpend  > 0 ? totalRevenue / totalSpend : 0;
+
+  const stats = [
+    { label: "Leads", value: totalLeads > 0 ? totalLeads.toLocaleString() : "—" },
+    { label: "Spend", value: totalSpend  > 0 ? fmtMoney(totalSpend)        : "—" },
+    { label: "CPL",   value: fmtCPL(cpl)  },
+    { label: "ROAS",  value: fmtROAS(roas) },
+  ];
+
+  return (
+    <div className="rounded-xl border border-[#e5e5e5] overflow-hidden mb-8">
+      <div className="grid grid-cols-4 divide-x divide-[#e5e5e5]">
+        {stats.map((s) => (
+          <div key={s.label} className="p-4 text-center">
+            <p className="text-[10px] font-semibold text-[#525252] uppercase tracking-wide mb-1">{s.label}</p>
+            <p className={`text-xl font-bold tracking-tight ${s.value === "—" ? "text-[#d4d4d4]" : "text-[#0a0a0a]"}`}>
+              {s.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Campaign breakdown table — sorted by leads descending.
+// Horizontally scrollable on narrow phones to keep column widths readable.
+// Two distinct empty states: "not connected" vs "no data for this period".
+function CampaignsTable({ meta }: { meta: MetaReportData | null }) {
+  const emptyMsg = !meta
+    ? "Connect Meta Ads to see campaign performance."
+    : "No campaign data for this period.";
+
+  return (
+    <div className="mb-8">
+      <p className="text-base font-semibold text-[#0a0a0a] mb-4">Campaigns</p>
+
+      {!meta || meta.campaigns.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[#e5e5e5] bg-[#fafafa] px-5 py-5">
+          <p className="text-sm text-[#d4d4d4]">{emptyMsg}</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-[#e5e5e5] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[360px] border-collapse text-left">
+              <thead>
+                <tr className="bg-[#fafafa] border-b border-[#e5e5e5]">
+                  {(["Campaign", "Spend", "Leads", "CPL", "ROAS"] as const).map((h) => (
+                    <th
+                      key={h}
+                      className={`px-4 py-2.5 text-[10px] font-semibold text-[#a3a3a3] uppercase tracking-wide whitespace-nowrap ${h !== "Campaign" ? "text-right" : ""}`}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {meta.campaigns.map((c, i) => (
+                  <tr
+                    key={c.name}
+                    className={i < meta.campaigns.length - 1 ? "border-b border-[#f0f0f0]" : ""}
+                  >
+                    {/* Campaign name truncates — full name visible on hover/long-press via title */}
+                    <td className="px-4 py-3 max-w-[160px]">
+                      <span className="block text-sm text-[#0a0a0a] truncate" title={c.name}>
+                        {c.name}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-[#525252] text-right tabular-nums whitespace-nowrap">
+                      {c.spend > 0 ? fmtMoney(c.spend) : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-[#0a0a0a] text-right tabular-nums">
+                      {c.leads > 0 ? c.leads.toLocaleString() : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-[#525252] text-right tabular-nums whitespace-nowrap">
+                      {fmtCPL(c.cpl)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                      {c.roas > 0 ? (
+                        // Highlight ROAS ≥ 2x in green — a common benchmark for profitable ad spend
+                        <span className={`text-sm font-medium ${c.roas >= 2 ? "text-emerald-600" : "text-[#525252]"}`}>
+                          {fmtROAS(c.roas)}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-[#d4d4d4]">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Compact funnel display — purpose-built for the narrow mobile card design.
+// The dashboard FunnelSnapshot uses a horizontal layout; this is vertical-friendly.
 function ReportFunnel({ data }: { data: GHLSyncResponse }) {
   function convPct(from: number, to: number): string | null {
     if (from === 0) return null;
@@ -43,14 +423,14 @@ function ReportFunnel({ data }: { data: GHLSyncResponse }) {
   }
 
   const stages = [
-    { label: "Leads",  value: data.contacts,    sub: "Total contacts" },
-    { label: "Booked", value: data.bookedCount,  sub: "Appointments set" },
-    { label: "Showed", value: data.showedCount,  sub: "Confirmed shows" },
-    { label: "Paid",   value: data.wonCount,     sub: "High-ticket sales" },
+    { label: "Leads",  value: data.contacts   },
+    { label: "Booked", value: data.bookedCount },
+    { label: "Showed", value: data.showedCount },
+    { label: "Paid",   value: data.wonCount    },
   ];
 
   const conversions = [
-    convPct(data.contacts, data.bookedCount),
+    convPct(data.contacts,   data.bookedCount),
     convPct(data.bookedCount, data.showedCount),
     convPct(data.showedCount, data.wonCount),
   ];
@@ -63,13 +443,12 @@ function ReportFunnel({ data }: { data: GHLSyncResponse }) {
       <div className="grid grid-cols-4 divide-x divide-[#e5e5e5]">
         {stages.map((s) => (
           <div key={s.label} className="p-4 text-center">
-            <p className="text-[10px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-1">
+            <p className="text-[10px] font-semibold text-[#525252] uppercase tracking-wide mb-1">
               {s.label}
             </p>
             <p className={`text-2xl font-bold tracking-tight ${s.value > 0 ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
               {fmtCount(s.value)}
             </p>
-            <p className="text-[10px] text-[#d4d4d4] mt-0.5">{s.sub}</p>
           </div>
         ))}
       </div>
@@ -150,6 +529,8 @@ function FunnelRow({ pipeline, rank }: { pipeline: GHLPipelineData; rank: number
 // Renders AI-generated summary sections — each with a bold heading and body copy.
 // Falls back to a muted placeholder when the summary isn't available (no API key,
 // generation failed, etc.) so the report page never hard-errors.
+// AI summary is intentionally all-time only — weekly snapshots would overwrite the
+// cached all-time summary, producing misleading insights for clients on subsequent visits.
 function AISummary({ sections }: { sections: SummarySection[] | null }) {
   const icon = (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -194,15 +575,56 @@ function AISummary({ sections }: { sections: SummarySection[] | null }) {
   );
 }
 
+// Section heading with an optional period label in muted text.
+// Used to clarify which sections are date-filtered vs always all-time.
+function SectionHeading({
+  label,
+  sub,
+  period,
+}: {
+  label: string;
+  sub?: string;
+  period?: string;
+}) {
+  return (
+    <div className="flex items-baseline gap-2 mb-4">
+      <p className="text-base font-semibold text-[#0a0a0a]">{label}</p>
+      {period && (
+        <span className="text-[10px] text-[#d4d4d4]">{period}</span>
+      )}
+      {sub && !period && (
+        <span className="text-[10px] text-[#d4d4d4]">{sub}</span>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function ReportPage({
   params,
+  searchParams,
 }: {
-  params: Promise<{ token: string }>;
+  params:       Promise<{ token: string }>;
+  // searchParams is a Promise in Next.js 16 — must be awaited before reading keys.
+  searchParams: Promise<{ week?: string }>;
 }) {
   const { token } = await params;
-  const admin = createAdminClient();
+  const { week }  = await searchParams;
+  const admin     = createAdminClient();
+
+  // Validate and parse the ?week= param. Invalid or missing → all-time mode.
+  const currentWeek = week && isValidWeekParam(week) ? week : null;
+
+  // Build a date range from the Monday YYYY-MM-DD param (Mon 00:00 → Sun 23:59 local).
+  let dateRange: GHLDateRange | undefined;
+  if (currentWeek) {
+    const [y, m, d] = currentWeek.split("-").map(Number);
+    const monday = new Date(y, m - 1, d);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    dateRange = { from: toISODate(monday), to: toISODate(sunday) };
+  }
 
   // Look up the report by token — 404 if the token is invalid or not found.
   // We also select the AI summary cache columns so we can avoid re-generating
@@ -226,19 +648,24 @@ export default async function ReportPage({
     ghlToken = "";
   }
 
-  // Fetch live GHL data — same shared function used by the dashboard sync route.
+  // Fetch GHL and Meta data in parallel — independent external fetches, no ordering dependency.
   let data: GHLSyncResponse | null = null;
   let dataError = false;
+  let metaData: MetaReportData | null = null;
 
-  try {
-    if (ghlToken) {
-      data = await fetchLocationData(report.location_id, ghlToken);
-    } else {
-      dataError = true;
-    }
-  } catch {
+  const [ghlSettled, metaSettled] = await Promise.allSettled([
+    ghlToken
+      ? fetchLocationData(report.location_id, ghlToken, dateRange)
+      : Promise.reject(new Error("no GHL token")),
+    fetchMetaReportData(report.org_id, dateRange),
+  ]);
+
+  if (ghlSettled.status === "fulfilled") {
+    data = ghlSettled.value;
+  } else {
     dataError = true;
   }
+  metaData = metaSettled.status === "fulfilled" ? metaSettled.value : null;
 
   // ── Showed count from appointment_confirmations ────────────────────────────
   // Patch the showed count into the GHL data object. The table may not exist
@@ -282,10 +709,10 @@ export default async function ReportPage({
       // Sort by appointment time descending so the most recent appear first.
       appointmentItems = appointments
         .map((appt) => ({
-          id: appt.id,
-          contactName: getAppointmentContactName(appt),
+          id:            appt.id,
+          contactName:   getAppointmentContactName(appt),
           appointmentAt: getAppointmentDate(appt).toISOString(),
-          outcome: confirmationMap.get(appt.id) ?? null,
+          outcome:       confirmationMap.get(appt.id) ?? null,
         }))
         .sort((a, b) => new Date(b.appointmentAt).getTime() - new Date(a.appointmentAt).getTime());
     } catch {
@@ -293,14 +720,14 @@ export default async function ReportPage({
     }
   }
 
-  // ── AI summary (cached 24h) ────────────────────────────────────────────────
+  // ── AI summary (cached 24h, all-time view only) ───────────────────────────
+  // Skipped in weekly mode — weekly data would overwrite the cached all-time summary,
+  // giving clients a confusing partial view on subsequent all-time visits.
   // We skip generation entirely when ANTHROPIC_API_KEY isn't set — this keeps
   // local dev and staging environments working without the key configured.
-  // On failure (API error, bad JSON, etc.) we fall back to the placeholder
-  // rather than breaking the page.
   let summarySections: SummarySection[] | null = null;
 
-  if (data && process.env.ANTHROPIC_API_KEY) {
+  if (!dateRange && data && process.env.ANTHROPIC_API_KEY) {
     const generatedAt = report.summary_generated_at
       ? new Date(report.summary_generated_at).getTime()
       : 0;
@@ -329,7 +756,7 @@ export default async function ReportPage({
             await admin
               .from("reports")
               .update({
-                ai_summary: JSON.stringify(summarySections),
+                ai_summary:           JSON.stringify(summarySections),
                 summary_generated_at: new Date().toISOString(),
               })
               .eq("token", token);
@@ -343,54 +770,87 @@ export default async function ReportPage({
     }
   }
 
-  const monthYear = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthYear   = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const todayMonday = toISODate(getMondayOf(new Date()));
+  const base        = `/report/${token}`;
 
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-lg mx-auto px-5 py-8 pb-16">
 
-        {/* Header */}
+        {/* Header — location info on the left, period toggle on the right.
+            In weekly mode: "All time" outline button (shadcn) navigates back to base URL.
+            In all-time mode: subtle "This week →" text link navigates to current week. */}
         <div className="mb-8">
-          <p className="text-[11px] font-semibold text-[#a3a3a3] uppercase tracking-widest mb-1">
-            {report.agency_name || "Agency Report"}
-          </p>
-          <h1 className="text-2xl font-bold text-[#0a0a0a] tracking-tight leading-tight">
-            {report.location_name || "Client Report"}
-          </h1>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold text-[#a3a3a3] uppercase tracking-widest mb-1">
+                {report.agency_name || "Agency Report"}
+              </p>
+              <h1 className="text-2xl font-bold text-[#0a0a0a] tracking-tight leading-tight">
+                {report.location_name || "Client Report"}
+              </h1>
+            </div>
+            {currentWeek ? (
+              <a
+                href={base}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0 mt-1")}
+              >
+                All time
+              </a>
+            ) : (
+              <a
+                href={`${base}?week=${todayMonday}`}
+                className="shrink-0 mt-2 text-[11px] font-medium text-[#a3a3a3] hover:text-[#0a0a0a] transition-colors"
+              >
+                This week →
+              </a>
+            )}
+          </div>
           <div className="flex items-center gap-3 mt-2">
             <span className="text-xs text-[#a3a3a3]">{monthYear}</span>
             <LiveDot />
           </div>
         </div>
 
-        {/* AI Summary */}
-        <div className="mb-8">
-          <AISummary sections={summarySections} />
-        </div>
+        {/* Week selector — only renders in weekly mode (null in all-time mode) */}
+        <WeekNav currentWeek={currentWeek} token={token} />
+
+        {/* Ad performance summary bar — leads, spend, CPL, ROAS for the selected period */}
+        <MetaSummaryBar meta={metaData} />
 
         {dataError ? (
-          <div className="rounded-xl border border-[#fee2e2] bg-[#fef2f2] px-5 py-4 text-sm text-[#ef4444]">
+          <div className="rounded-xl border border-[#fee2e2] bg-[#fef2f2] px-5 py-4 text-sm text-[#ef4444] mb-8">
             Unable to load report data at this time. Please check back shortly.
           </div>
         ) : data ? (
           <>
-            {/* Funnel overview — Lead → Booked → Showed → Paid */}
+            {/* Funnel overview — date-filtered in weekly mode.
+                Heading is intentionally larger than other section labels so it reads
+                as the primary data section on the page. Period label omitted — the
+                WeekNav at the top already communicates the selected timeframe. */}
             <div className="mb-8">
-              <p className="text-[11px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-4">
-                Funnel Overview
-              </p>
+              <h2 className="text-base font-semibold text-[#0a0a0a] mb-4">Funnel Overview</h2>
               <ReportFunnel data={data} />
             </div>
+
+            {/* Campaign breakdown — date-filtered in weekly mode */}
+            <CampaignsTable meta={metaData} />
+
+            {/* AI Summary — all-time only; hidden in weekly mode (see comment on AISummary) */}
+            {!dateRange && (
+              <div className="mb-8">
+                <AISummary sections={summarySections} />
+              </div>
+            )}
 
             {/* Appointment confirmation — med spa owner marks who showed */}
             {appointmentItems.length > 0 && (
               <div className="mb-8">
-                <p className="text-[11px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-1">
-                  Appointment Updates
-                </p>
-                <p className="text-xs text-[#c4c4c4] mb-4">
-                  Tap to confirm who arrived at your location
-                </p>
+                <SectionHeading
+                  label="Appointment Updates"
+                  sub="Tap to confirm who arrived at your location"
+                />
                 <div className="rounded-xl border border-[#e5e5e5] px-4">
                   <AppointmentConfirmList
                     appointments={appointmentItems}
@@ -400,13 +860,14 @@ export default async function ReportPage({
               </div>
             )}
 
-            {/* Pipeline leaderboard */}
+            {/* Pipeline leaderboard — always all-time; week label would be misleading here */}
             {data.pipelines.length > 0 && (
               <div className="mb-8">
-                <p className="text-[11px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-1">
-                  Funnel Performance
-                </p>
-                <p className="text-xs text-[#c4c4c4] mb-4">Ranked by close rate</p>
+                <SectionHeading
+                  label="Funnel Performance"
+                  period={currentWeek ? "All time" : undefined}
+                  sub={!currentWeek ? "Ranked by close rate" : undefined}
+                />
                 <div className="rounded-xl border border-[#e5e5e5] overflow-hidden px-4">
                   {data.pipelines.map((pl, i) => (
                     <FunnelRow key={pl.pipelineName} pipeline={pl} rank={i + 1} />

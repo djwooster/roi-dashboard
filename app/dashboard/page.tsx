@@ -51,8 +51,16 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
 }
 
 // ── Share link button ─────────────────────────────────────────────────────────
+// Shows a double-helix dot animation while the report URL is being generated
+// so the user knows their click registered (the API call can take ~1s).
+// Two interleaved strands of dots oscillate in opposite vertical directions
+// with staggered delays — the wave propagation creates the helix illusion.
 function ShareLinkButton({ onToast }: { onToast: (msg: string) => void }) {
+  const [loading, setLoading] = useState(false);
+
   async function handleClick() {
+    if (loading) return;
+    setLoading(true);
     // Create (or retrieve existing) report URL, then copy to clipboard.
     // The API upserts so repeated clicks always return the same persistent URL.
     try {
@@ -66,20 +74,66 @@ function ShareLinkButton({ onToast }: { onToast: (msg: string) => void }) {
       }
     } catch {
       onToast("Could not generate report link. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
+  // 9 dots: even indices = strand A (oscillates up), odd = strand B (oscillates down).
+  // Staggered delays shift the phase across the row, producing a traveling wave.
+  const DOTS = 9;
+  const DOT_DELAY = 0.085; // seconds between each dot's phase start
+
   return (
-    <button
-      onClick={handleClick}
-      className="flex items-center gap-1.5 text-[11px] font-medium text-white bg-[#0a0a0a] px-3 py-1.5 rounded-md hover:bg-[#262626] transition-colors"
-    >
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-        <path d="M5 6.5a2.5 2.5 0 003.54 0l1-1a2.5 2.5 0 00-3.54-3.54L5.5 2.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-        <path d="M7 5.5a2.5 2.5 0 00-3.54 0l-1 1a2.5 2.5 0 003.54 3.54L6.5 9.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-      Share link
-    </button>
+    <>
+      <style>{`
+        @keyframes _helixUp {
+          0%, 100% { transform: translateY(0);   opacity: 1;    }
+          50%       { transform: translateY(-5px); opacity: 0.5; }
+        }
+        @keyframes _helixDown {
+          0%, 100% { transform: translateY(0);    opacity: 0.45; }
+          50%       { transform: translateY(5px);  opacity: 1;   }
+        }
+      `}</style>
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        // min-w keeps the button the same width during the loading swap
+        className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-white bg-[#0a0a0a] px-3 h-7 rounded-md hover:bg-[#262626] transition-colors min-w-[90px] disabled:cursor-default"
+      >
+        {loading ? (
+          <div className="flex items-center gap-[3.5px] py-[1px]">
+            {Array.from({ length: DOTS }).map((_, i) => {
+              const isStrandA = i % 2 === 0;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width:  isStrandA ? 5 : 4,
+                    height: isStrandA ? 5 : 4,
+                    borderRadius: "50%",
+                    backgroundColor: "white",
+                    // Opacity baked into the keyframe; initial value matches 0%
+                    opacity: isStrandA ? 1 : 0.45,
+                    animation: `${isStrandA ? "_helixUp" : "_helixDown"} 0.85s ease-in-out infinite`,
+                    animationDelay: `${i * DOT_DELAY}s`,
+                  }}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M5 6.5a2.5 2.5 0 003.54 0l1-1a2.5 2.5 0 00-3.54-3.54L5.5 2.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M7 5.5a2.5 2.5 0 00-3.54 0l-1 1a2.5 2.5 0 003.54 3.54L6.5 9.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            Share link
+          </>
+        )}
+      </button>
+    </>
   );
 }
 
