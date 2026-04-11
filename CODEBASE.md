@@ -132,6 +132,15 @@ Keep this updated when adding routes, components, or lib files.
 **GHL callback URL:**
 - Always use `getCallbackUrl(provider)` from `lib/oauth-config.ts` — handles the crm alias automatically
 
+**GHL token resolution — always use both sources:**
+- Single-location OAuth → token in `integrations` table (`provider_user_id` = locationId); `ghl_locations` row exists but has no token
+- Agency/multi-location OAuth → token in `ghl_locations`
+- Any route calling GHL must try `getValidLocationToken` first, then fall back to `getValidGHLToken` — never assume one table
+
+**GHL scopes — app config and oauth-config.ts must match:**
+- Enabling a scope in the GHL Marketplace app only permits it; the token only receives scopes listed in `lib/oauth-config.ts` at connect time
+- Changing either side requires the user to disconnect + reconnect
+
 **Billing enforcement:**
 - `proxy.ts` reads `stripe_subscription_status` from JWT user metadata (not DB)
 - Stripe webhook updates both the DB and the user's JWT metadata on every event

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidGHLToken } from "@/lib/ghl/getValidToken";
 import { getValidLocationToken } from "@/lib/ghl/getValidLocationToken";
@@ -320,9 +321,10 @@ export default async function ReportPage({
       // doesn't affect what the user sees.
       try {
         summarySections = await generateReportSummary(data, report.location_name ?? "Client");
-        // Fire-and-forget cache write. Supabase's query builder is lazy — it only
-        // executes on .then(), so we must trigger it explicitly without awaiting.
-        (async () => {
+        // Cache the summary after the response is sent — after() guarantees
+        // this runs on serverless without blocking the client or risking
+        // termination before an unawaited promise resolves.
+        after(async () => {
           try {
             await admin
               .from("reports")
@@ -334,7 +336,7 @@ export default async function ReportPage({
           } catch {
             // Cache write failure is non-fatal — next visit will regenerate
           }
-        })();
+        });
       } catch (err) {
         console.error("[report] summary failed:", err);
       }

@@ -9,15 +9,18 @@ type GHLEventsResponse = {
   total?: number;
 };
 
+type GHLCalendar = { id: string; name?: string };
+type GHLCalendarsResponse = { calendars?: GHLCalendar[] };
+
 // Fetches calendar appointments for a GHL location.
 // Used by fetchLocationData to populate the "Booked" stage of the funnel.
 //
-// Why a separate file: this scope (calendars.readonly) lives on the GHL
-// sub-account app, not the agency app. Isolating the fetch makes it easy
-// to swap endpoints or handle scope errors without affecting core KPI fetches.
+// Why two-step: GHL's /calendars/events endpoint requires calendarId, userId,
+// or groupId — locationId alone returns a 422. So we first fetch all calendars
+// for the location, then fetch events per calendar and merge the results.
 //
-// Returns an empty result on any failure — the calendars.readonly scope must
-// be added to the GHL sub-account app for this to return real data.
+// Returns an empty result on any failure — the calendars/events.readonly scope
+// must be on the GHL sub-account app for this to return real data.
 export async function fetchAppointments(
   locationId: string,
   token: string,
@@ -25,9 +28,11 @@ export async function fetchAppointments(
 ): Promise<{ count: number; appointments: GHLAppointment[] }> {
   try {
     // GHL calendar events use epoch milliseconds for startTime/endTime.
-    // Default to the last 30 days when no explicit range is provided.
+    // Default window: 30 days back to 14 days forward so the med spa owner
+    // sees upcoming appointments they haven't confirmed yet, not just past ones.
     const now = Date.now();
     const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
 
     const startTime = dateRange?.from
       ? new Date(dateRange.from).getTime()
@@ -36,21 +41,37 @@ export async function fetchAppointments(
     // Add 1 day - 1ms to make "to" date inclusive through end of day
     const endTime = dateRange?.to
       ? new Date(dateRange.to).getTime() + 24 * 60 * 60 * 1000 - 1
-      : now;
+      : now + fourteenDaysMs;
 
-    const res = await ghlFetch(
-      `/calendars/events?locationId=${locationId}&startTime=${startTime}&endTime=${endTime}`,
-      token,
+    // Step 1: Get all calendars for this location
+    const calendarsRes = await ghlFetch(`/calendars/?locationId=${locationId}`, token);
+    if (!calendarsRes.ok) {
+      console.error(`[fetchAppointments] calendars fetch ${calendarsRes.status}`);
+      return { count: 0, appointments: [] };
+    }
+
+    const calendarsData = await calendarsRes.json() as GHLCalendarsResponse;
+    const calendars = calendarsData.calendars ?? [];
+
+    if (calendars.length === 0) return { count: 0, appointments: [] };
+
+    // Step 2: Fetch events for each calendar in parallel, then merge
+    const results = await Promise.all(
+      calendars.map(async (cal) => {
+        const res = await ghlFetch(
+          `/calendars/events?calendarId=${cal.id}&locationId=${locationId}&startTime=${startTime}&endTime=${endTime}`,
+          token,
+        );
+        if (!res.ok) return [];
+        const data = await res.json() as GHLEventsResponse;
+        return data.events ?? [];
+      })
     );
 
-    if (!res.ok) return { count: 0, appointments: [] };
-
-    const data = await res.json() as GHLEventsResponse;
-    const appointments = data.events ?? [];
+    const appointments = results.flat();
     return { count: appointments.length, appointments };
-  } catch {
-    // Calendar scope not granted, endpoint not available, or network error.
-    // The funnel will show 0 for "Booked" until the scope is added to the GHL sub-account app.
+  } catch (err) {
+    console.error("[fetchAppointments] threw:", err);
     return { count: 0, appointments: [] };
   }
 }

@@ -51,7 +51,7 @@ Demo: mock med spa numbers (247→89→61→15) + guarantee badge. Live: from `g
 
 ## Before First Paying Customer
 
-- [ ] **GHL Agency App Published** — add redirect URIs, scopes, Save/Publish in marketplace.gohighlevel.com
+- [x] **GHL App** — sub-account app with contacts/opportunities/calendars scopes. One OAuth per location. Done.
 - [ ] **Meta App Review** — submit at developers.facebook.com. Scopes: `ads_read`, `ads_management`, `leads_retrieval`
 - [ ] **Meta Long-Lived Token** — build `lib/meta/getValidToken.ts`, exchange short-lived token after OAuth
 - [ ] **Stripe Activate** — create product/price, add env vars, register webhook, set `BILLING_ENFORCEMENT=true`

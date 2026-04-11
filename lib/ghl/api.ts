@@ -13,3 +13,17 @@ export async function ghlFetch(path: string, token: string) {
     },
   });
 }
+
+// PUT variant — used for write-back operations (e.g. updating appointment status).
+// Separate from ghlFetch to keep the common GET path simple.
+export async function ghlPut(path: string, token: string, body: unknown) {
+  return fetch(`${GHL_API}${path}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Version: GHL_VERSION,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}

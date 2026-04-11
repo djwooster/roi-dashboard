@@ -43,7 +43,7 @@ export async function fetchLocationData(
   const dates = oppDateParams(dateRange);
 
   // Fetch appointments in parallel with the core GHL calls.
-  // fetchAppointments silently returns { count: 0 } if the calendars.readonly scope
+  // fetchAppointments silently returns { count: 0 } if the calendars/events.readonly scope
   // isn't on the sub-account app yet — the funnel degrades gracefully.
   const [contactsRes, oppsRes, wonRes, appointmentsResult] = await Promise.all([
     // Contacts count is intentionally not date-filtered — agencies want total pipeline

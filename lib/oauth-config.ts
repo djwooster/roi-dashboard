@@ -27,11 +27,15 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, ProviderConfig> = {
     // Sub-account scopes — one app, one OAuth flow per location.
     // GHL's chooselocation screen lets the user pick which sub-account to connect;
     // the resulting token is scoped to that location only.
-    // calendars.readonly is included for appointment data (booked/showed counts).
+    // calendars.readonly — required for GET /calendars/ (list calendars for a location).
+    // calendars/events.readonly — required for GET /calendars/events (appointment list).
+    // calendars/events.write — write show/no-show status back to GHL appointments.
     scopes: [
       "contacts.readonly",
       "opportunities.readonly",
       "calendars.readonly",
+      "calendars/events.readonly",
+      "calendars/events.write",
     ],
     clientIdEnv: "GHL_CLIENT_ID",
     clientSecretEnv: "GHL_CLIENT_SECRET",
