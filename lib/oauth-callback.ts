@@ -65,6 +65,28 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
     [key: string]: unknown;
   };
 
+  // ── Meta: exchange short-lived token for a long-lived one (~60 days) ─────────
+  // The auth code exchange always returns a short-lived token (~1 hour).
+  // We immediately swap it here so we never store a token that expires in an hour.
+  // Long-lived tokens are re-exchanged lazily by getValidMetaToken when they're
+  // within 7 days of expiry.
+  if (provider === "facebook") {
+    const params = new URLSearchParams({
+      grant_type:        "fb_exchange_token",
+      client_id:         clientId,
+      client_secret:     clientSecret,
+      fb_exchange_token: tokens.access_token,
+    });
+    const llRes = await fetch(`https://graph.facebook.com/v19.0/oauth/access_token?${params}`);
+    if (llRes.ok) {
+      const ll = await llRes.json() as { access_token: string; expires_in?: number };
+      tokens.access_token = ll.access_token;
+      if (ll.expires_in) tokens.expires_in = ll.expires_in;
+    }
+    // If the exchange fails, fall through and store the short-lived token.
+    // getValidMetaToken will attempt re-exchange on the first dashboard load.
+  }
+
   const tokenExpiresAt = tokens.expires_in
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : null;

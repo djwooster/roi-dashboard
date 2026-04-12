@@ -10,6 +10,7 @@ import { fetchAppointments, getAppointmentContactName, getAppointmentDate } from
 import { generateReportSummary, type SummarySection } from "@/lib/ai/generateReportSummary";
 import AppointmentConfirmList, { type AppointmentItem } from "@/components/AppointmentConfirmList";
 import type { GHLPipelineData, GHLSyncResponse } from "@/lib/ghl/types";
+import { getValidMetaToken } from "@/lib/meta/getValidToken";
 
 // Public report page — no auth required.
 // The token in the URL IS the access control: a 32-char random hex string that
@@ -111,18 +112,14 @@ async function fetchMetaReportData(
   orgId: string,
   dateRange?: GHLDateRange,
 ): Promise<MetaReportData | null> {
-  const admin = createAdminClient();
-  const { data: integration } = await admin
-    .from("integrations")
-    .select("access_token")
-    .eq("org_id", orgId)
-    .eq("provider", "facebook")
-    .eq("status", "active")
-    .single();
-
-  if (!integration) return null;
-
-  const token      = integration.access_token;
+  // getValidMetaToken uses the admin client internally — no user session needed.
+  // It also handles expiry check + re-exchange, so the token is always fresh.
+  let token: string;
+  try {
+    token = await getValidMetaToken(orgId);
+  } catch {
+    return null;
+  }
   const dateParams = dateRange
     ? `&time_range=${encodeURIComponent(JSON.stringify({ since: dateRange.from, until: dateRange.to }))}`
     : `&date_preset=maximum`;

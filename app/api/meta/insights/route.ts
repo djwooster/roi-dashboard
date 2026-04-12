@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getValidMetaToken } from "@/lib/meta/getValidToken";
 
 const GRAPH = "https://graph.facebook.com/v19.0";
 
@@ -91,19 +92,13 @@ export async function GET() {
   const orgId = user.user_metadata?.org_id;
   if (!orgId) return NextResponse.json({ error: "No org" }, { status: 400 });
 
-  const { data: integration, error } = await supabase
-    .from("integrations")
-    .select("access_token")
-    .eq("org_id", orgId)
-    .eq("provider", "facebook")
-    .eq("status", "active")
-    .single();
-
-  if (error || !integration) {
+  // getValidMetaToken handles expiry check + re-exchange internally.
+  let token: string;
+  try {
+    token = await getValidMetaToken(orgId);
+  } catch {
     return NextResponse.json({ error: "Facebook not connected" }, { status: 404 });
   }
-
-  const token = integration.access_token;
   const accounts = await discoverAccounts(token);
   const activeAccounts = accounts.filter((a) => a.account_status === 1);
 
