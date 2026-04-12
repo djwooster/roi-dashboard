@@ -44,7 +44,7 @@ Keep this updated when adding routes, components, or lib files.
 | `/demo` | none | Marketing demo — Dashboard wrapped in `DemoContext.Provider`. Always uses mock data. |
 | `/dashboard` | user + onboarding | Main app. Loads `ghl_locations` on mount, resolves active location, fetches GHL + Meta. Header has ClientSwitcher + DateRangePicker. |
 | `/onboarding` | user | Org setup form. Calls `create_org_with_owner` RPC (atomic — org + member + profile in one transaction). |
-| `/report/[token]` | none (token = auth) | Public client report. Fetches live GHL data + AI summary (cached 24h in `reports.ai_summary`). Mobile-first. |
+| `/report/[token]` | none (token = auth) | Public client report. Accepts `?week=YYYY-MM-DD` (Monday) for weekly view; omit for all-time. Fetches GHL + Meta in parallel server-side (Meta uses stored org token — no user session needed). Sections: week nav (chevrons + All time toggle in header), Meta summary bar (leads/spend/CPL/ROAS), campaigns table, funnel overview, pipeline leaderboard, appointment confirmations, AI summary (all-time only, cached 24h). Mobile-first. |
 | `/billing` | user | Upgrade page. Posts to `/api/stripe/checkout`. Shows current subscription status. |
 | `/login` | none | Email + password login. Hard-navigates to `/dashboard` on success. |
 | `/signup` | none | Email + password signup. Hard-navigates to `/onboarding` on success. |
