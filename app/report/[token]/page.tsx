@@ -109,7 +109,7 @@ function sumActions(actions: InsightAction[] | undefined, type: string): number 
 
 async function fetchMetaReportData(
   orgId: string,
-  dateRange?: { from: string; to: string },
+  dateRange?: GHLDateRange,
 ): Promise<MetaReportData | null> {
   const admin = createAdminClient();
   const { data: integration } = await admin
