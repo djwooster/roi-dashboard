@@ -300,9 +300,9 @@ function WeekNav({ currentWeek, token }: { currentWeek: string | null; token: st
 function MetaSummaryBar({ meta }: { meta: MetaReportData | null }) {
   if (!meta) {
     return (
-      <div className="rounded-xl border border-dashed border-[#e5e5e5] bg-[#fafafa] px-5 py-4 mb-8">
-        <p className="text-[11px] font-semibold text-[#d4d4d4] uppercase tracking-wide mb-1">Ad Performance</p>
-        <p className="text-sm text-[#d4d4d4]">
+      <div className="rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa] px-5 py-4 mb-8">
+        <p className="text-[11px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-1">Ad Performance</p>
+        <p className="text-sm text-[#a3a3a3]">
           Meta Ads not yet connected — campaign metrics will appear here.
         </p>
       </div>
@@ -349,8 +349,8 @@ function CampaignsTable({ meta }: { meta: MetaReportData | null }) {
       <p className="text-base font-semibold text-[#0a0a0a] mb-4">Campaigns</p>
 
       {!meta || meta.campaigns.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#e5e5e5] bg-[#fafafa] px-5 py-5">
-          <p className="text-sm text-[#d4d4d4]">{emptyMsg}</p>
+        <div className="rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa] px-5 py-5">
+          <p className="text-sm text-[#a3a3a3]">{emptyMsg}</p>
         </div>
       ) : (
         <div className="rounded-xl border border-[#e5e5e5] overflow-hidden">
@@ -536,19 +536,19 @@ function AISummary({ sections }: { sections: SummarySection[] | null }) {
       <path
         d="M7 1v2M7 11v2M1 7h2M11 7h2M3.22 3.22l1.41 1.41M9.37 9.37l1.41 1.41M3.22 10.78l1.41-1.41M9.37 4.63l1.41-1.41"
         strokeWidth="1.2" strokeLinecap="round"
-        stroke={sections && sections.length > 0 ? "#0a0a0a" : "#c4c4c4"}
+        stroke={sections && sections.length > 0 ? "#0a0a0a" : "#a3a3a3"}
       />
     </svg>
   );
 
   if (!sections || sections.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[#e5e5e5] bg-[#fafafa] px-5 py-5">
+      <div className="rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa] px-5 py-5">
         <div className="flex items-center gap-2 mb-2">
           {icon}
-          <span className="text-xs font-semibold text-[#c4c4c4] uppercase tracking-wide">AI Insights</span>
+          <span className="text-xs font-semibold text-[#a3a3a3] uppercase tracking-wide">AI Insights</span>
         </div>
-        <p className="text-sm text-[#c4c4c4] leading-relaxed">
+        <p className="text-sm text-[#a3a3a3] leading-relaxed">
           Intelligent campaign analysis is coming soon — key trends, what&apos;s working,
           and what to watch, written in plain English.
         </p>
@@ -571,6 +571,155 @@ function AISummary({ sections }: { sections: SummarySection[] | null }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// Ad Performance — Meta-sourced CPL + total leads stat tiles, then a ranked list
+// of top campaigns by CPL. Campaigns sorted by leads desc (already in that order
+// from fetchMetaReportData) so the list shows highest-volume campaigns, not just
+// cheapest ones. CPL highlighted green when it beats the overall average.
+function AdPerformanceSection({ meta }: { meta: MetaReportData | null }) {
+  if (!meta || (meta.totalLeads === 0 && meta.totalSpend === 0)) {
+    return (
+      <div className="rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa] px-5 py-4">
+        <p className="text-sm text-[#a3a3a3]">Connect Meta Ads to see ad performance metrics.</p>
+      </div>
+    );
+  }
+
+  const avgCpl = meta.totalLeads > 0 ? meta.totalSpend / meta.totalLeads : 0;
+  // Only show campaigns that generated leads — CPL is undefined without lead data
+  const topAds = meta.campaigns.filter((c) => c.leads > 0).slice(0, 5);
+
+  return (
+    <>
+      {/* Two hero stat tiles — the two numbers clients care about most */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="rounded-xl border border-[#e5e5e5] p-4">
+          <p className="text-[10px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-2">Cost Per Lead</p>
+          <p className={`text-2xl font-bold tracking-tight ${avgCpl > 0 ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
+            {fmtCPL(avgCpl)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-[#e5e5e5] p-4">
+          <p className="text-[10px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-2">Total Leads</p>
+          <p className={`text-2xl font-bold tracking-tight ${meta.totalLeads > 0 ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
+            {meta.totalLeads > 0 ? meta.totalLeads.toLocaleString() : "—"}
+          </p>
+        </div>
+      </div>
+
+      {/* Top campaigns by lead volume, with individual CPL.
+          Green CPL = better than the account average. */}
+      {topAds.length > 0 && (
+        <div className="rounded-xl border border-[#e5e5e5] overflow-hidden">
+          <div className="px-4 py-2.5 bg-[#fafafa] border-b border-[#e5e5e5]">
+            <p className="text-[10px] font-semibold text-[#a3a3a3] uppercase tracking-wide">Top Campaigns</p>
+          </div>
+          {topAds.map((c, i) => (
+            <div
+              key={c.name}
+              className={`flex items-center justify-between px-4 py-3 ${i < topAds.length - 1 ? "border-b border-[#f0f0f0]" : ""}`}
+            >
+              <span className="text-sm text-[#0a0a0a] truncate mr-4" style={{ maxWidth: "65%" }} title={c.name}>
+                {c.name}
+              </span>
+              {/* Green when this campaign beats the account average CPL */}
+              <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${avgCpl > 0 && c.cpl < avgCpl ? "text-emerald-600" : "text-[#0a0a0a]"}`}>
+                {fmtCPL(c.cpl)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// Lead Handling Performance — funnel conversion rates from GHL data.
+// Shows how well leads are being worked: booking rate, show rate, close rate.
+// These rates answer "once a lead comes in, what happens to it?" which is the
+// agency's responsibility, distinct from ad-side CPL and volume.
+function LeadHandlingSection({ data }: { data: GHLSyncResponse }) {
+  function convPct(from: number, to: number): string {
+    if (from === 0) return "—";
+    return `${Math.round((to / from) * 100)}%`;
+  }
+
+  const stats = [
+    { label: "Booking Rate", value: convPct(data.contacts, data.bookedCount) },
+    { label: "Show Rate",    value: convPct(data.bookedCount, data.showedCount) },
+    { label: "Close Rate",   value: convPct(data.showedCount, data.wonCount) },
+  ];
+
+  return (
+    <div className="rounded-xl border border-[#e5e5e5] overflow-hidden">
+      <div className="grid grid-cols-3 divide-x divide-[#e5e5e5]">
+        {stats.map((s) => (
+          <div key={s.label} className="p-4 text-center">
+            <p className="text-[10px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-2">{s.label}</p>
+            <p className={`text-2xl font-bold tracking-tight ${s.value === "—" ? "text-[#d4d4d4]" : "text-[#0a0a0a]"}`}>
+              {s.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Appointment Performance — aggregate stats derived from the appointment confirmation
+// list (last 30 days of GHL calendar appointments merged with our DB confirmations).
+// "Booked" = every appointment fetched; "Showed"/"No-show" = confirmed outcomes;
+// "Pending" = not yet confirmed. Show rate calculated only over confirmed appointments
+// so partial confirmation doesn't drag the rate down misleadingly.
+function AppointmentPerformanceSection({ appointments }: { appointments: AppointmentItem[] }) {
+  if (appointments.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-[#d4d4d4] bg-[#fafafa] px-5 py-4">
+        <p className="text-sm text-[#a3a3a3]">No appointment data available for this period.</p>
+      </div>
+    );
+  }
+
+  const showed  = appointments.filter((a) => a.outcome === "showed").length;
+  const noShow  = appointments.filter((a) => a.outcome === "no_show").length;
+  const pending = appointments.filter((a) => a.outcome === null).length;
+  const confirmed = showed + noShow;
+  // Show rate over confirmed-only; pending appointments aren't resolved yet
+  const showRatePct = confirmed > 0 ? Math.round((showed / confirmed) * 100) : null;
+
+  const stats = [
+    { label: "Booked",   value: appointments.length.toString() },
+    { label: "Showed",   value: showed.toString() },
+    { label: "No-shows", value: noShow.toString() },
+    { label: "Pending",  value: pending.toString() },
+  ];
+
+  return (
+    <>
+      <div className="rounded-xl border border-[#e5e5e5] overflow-hidden mb-3">
+        <div className="grid grid-cols-4 divide-x divide-[#e5e5e5]">
+          {stats.map((s) => (
+            <div key={s.label} className="p-4 text-center">
+              <p className="text-[10px] font-semibold text-[#a3a3a3] uppercase tracking-wide mb-2">{s.label}</p>
+              <p className={`text-2xl font-bold tracking-tight ${s.value === "0" ? "text-[#d4d4d4]" : "text-[#0a0a0a]"}`}>
+                {s.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Show rate summary — only rendered once at least one appointment is confirmed */}
+      {showRatePct !== null && (
+        <div className="rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-4 py-3 flex items-center gap-3">
+          <span className="text-lg font-bold text-[#0a0a0a]">{showRatePct}%</span>
+          <span className="text-sm text-[#525252]">
+            show rate ({showed} of {confirmed} confirmed appointments)
+          </span>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -813,7 +962,7 @@ export default async function ReportPage({
             ) : (
               <a
                 href={`${base}?week=${todayMonday}`}
-                className="shrink-0 mt-2 text-[11px] font-medium text-[#a3a3a3] hover:text-[#0a0a0a] transition-colors"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0 mt-1")}
               >
                 This week →
               </a>
@@ -827,6 +976,28 @@ export default async function ReportPage({
 
         {/* Week selector — only renders in weekly mode (null in all-time mode) */}
         <WeekNav currentWeek={currentWeek} token={token} />
+
+        {/* AI Insights — at the top so clients see the narrative summary first before
+            diving into raw numbers. All-time cached 24h; weekly generated fresh. */}
+        {data && (
+          <div className="mb-8">
+            <AISummary sections={summarySections} />
+          </div>
+        )}
+
+        {/* Appointment Updates — placed directly below AI Insights so the med spa
+            owner can act on confirmations immediately after reading the summary. */}
+        {appointmentItems.length > 0 && (
+          <div className="mb-8">
+            <SectionHeading label="Appointment Updates" />
+            <div className="rounded-xl border border-[#e5e5e5] px-4">
+              <AppointmentConfirmList
+                appointments={appointmentItems}
+                reportToken={token}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Ad performance summary bar — leads, spend, CPL, ROAS for the selected period */}
         <MetaSummaryBar meta={metaData} />
@@ -849,35 +1020,12 @@ export default async function ReportPage({
             {/* Campaign breakdown — date-filtered in weekly mode */}
             <CampaignsTable meta={metaData} />
 
-            {/* AI Summary — shown in both all-time and weekly modes.
-                All-time summary is cached 24h; weekly is generated fresh per visit. */}
-            <div className="mb-8">
-              <AISummary sections={summarySections} />
-            </div>
-
-            {/* Appointment confirmation — med spa owner marks who showed */}
-            {appointmentItems.length > 0 && (
-              <div className="mb-8">
-                <SectionHeading
-                  label="Appointment Updates"
-                  sub="Tap to confirm who arrived at your location"
-                />
-                <div className="rounded-xl border border-[#e5e5e5] px-4">
-                  <AppointmentConfirmList
-                    appointments={appointmentItems}
-                    reportToken={token}
-                  />
-                </div>
-              </div>
-            )}
-
             {/* Pipeline leaderboard — always all-time; week label would be misleading here */}
             {data.pipelines.length > 0 && (
               <div className="mb-8">
                 <SectionHeading
                   label="Funnel Performance"
                   period={currentWeek ? "All time" : undefined}
-                  sub={!currentWeek ? "Ranked by close rate" : undefined}
                 />
                 <div className="rounded-xl border border-[#e5e5e5] overflow-hidden px-4">
                   {data.pipelines.map((pl, i) => (
@@ -886,6 +1034,27 @@ export default async function ReportPage({
                 </div>
               </div>
             )}
+
+            {/* Ad Performance — Meta CPL, total leads, and top campaigns by CPL.
+                Shows the agency's ad buying efficiency for the selected period. */}
+            <div className="mb-8">
+              <SectionHeading label="Ad Performance" />
+              <AdPerformanceSection meta={metaData} />
+            </div>
+
+            {/* Lead Handling Performance — funnel conversion rates from GHL.
+                Shows what happens to leads after they come in: booking, show, close. */}
+            <div className="mb-8">
+              <SectionHeading label="Lead Handling Performance" />
+              <LeadHandlingSection data={data} />
+            </div>
+
+            {/* Appointment Performance — aggregate stats from the last 30 days of
+                calendar appointments, broken down by confirmation outcome. */}
+            <div className="mb-8">
+              <SectionHeading label="Appointment Performance" />
+              <AppointmentPerformanceSection appointments={appointmentItems} />
+            </div>
           </>
         ) : null}
 
