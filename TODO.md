@@ -55,6 +55,12 @@ Demo: mock med spa numbers (247→89→61→15) + guarantee badge. Live: from `g
 
 ---
 
+## Future Considerations
+
+- **Report data snapshots** — Weekly report data is fetched live from GHL/Meta on every load; nothing is snapshotted per week. If GHL data is edited retroactively, historical report views will silently change. If the agency ever needs an audit trail or dispute resolution, consider writing a weekly snapshot to Supabase (e.g. a `report_snapshots` table keyed on `(report_id, week)`). Playing it by ear for now.
+
+---
+
 ## Technical Debt
 
 - **Billing page price hardcoded** — `$297/month` literal in `/billing/page.tsx`. Use `NEXT_PUBLIC_PLAN_PRICE` env var.

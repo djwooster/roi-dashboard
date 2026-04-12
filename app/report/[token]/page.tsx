@@ -529,8 +529,7 @@ function FunnelRow({ pipeline, rank }: { pipeline: GHLPipelineData; rank: number
 // Renders AI-generated summary sections — each with a bold heading and body copy.
 // Falls back to a muted placeholder when the summary isn't available (no API key,
 // generation failed, etc.) so the report page never hard-errors.
-// AI summary is intentionally all-time only — weekly snapshots would overwrite the
-// cached all-time summary, producing misleading insights for clients on subsequent visits.
+// Shown in both all-time and weekly views. All-time is cached 24h; weekly is live.
 function AISummary({ sections }: { sections: SummarySection[] | null }) {
   const icon = (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -720,52 +719,65 @@ export default async function ReportPage({
     }
   }
 
-  // ── AI summary (cached 24h, all-time view only) ───────────────────────────
-  // Skipped in weekly mode — weekly data would overwrite the cached all-time summary,
-  // giving clients a confusing partial view on subsequent all-time visits.
-  // We skip generation entirely when ANTHROPIC_API_KEY isn't set — this keeps
-  // local dev and staging environments working without the key configured.
+  // ── AI summary ────────────────────────────────────────────────────────────
+  // Generated for both all-time and weekly views.
+  // All-time: cached 24h in the reports table — serves instantly on repeat visits.
+  // Weekly: generated fresh on each visit, not cached — weekly data is scoped and
+  //   changes as confirmations come in, so a 24h cache would often be stale anyway.
+  //   We avoid storing it in the reports table to prevent overwriting the all-time cache.
+  // Skip entirely when ANTHROPIC_API_KEY isn't set (local dev / staging without key).
   let summarySections: SummarySection[] | null = null;
 
-  if (!dateRange && data && process.env.ANTHROPIC_API_KEY) {
-    const generatedAt = report.summary_generated_at
-      ? new Date(report.summary_generated_at).getTime()
-      : 0;
-    const isFresh = report.ai_summary && Date.now() - generatedAt < SUMMARY_TTL_MS;
+  if (data && process.env.ANTHROPIC_API_KEY) {
+    if (!dateRange) {
+      // ── All-time: serve from cache if fresh, otherwise generate + cache ──
+      const generatedAt = report.summary_generated_at
+        ? new Date(report.summary_generated_at).getTime()
+        : 0;
+      const isFresh = report.ai_summary && Date.now() - generatedAt < SUMMARY_TTL_MS;
 
-    if (isFresh) {
-      // Serve from cache — no Anthropic call needed.
-      try {
-        summarySections = JSON.parse(report.ai_summary) as SummarySection[];
-      } catch {
-        // Corrupt cache — fall through to regenerate below
+      if (isFresh) {
+        try {
+          summarySections = JSON.parse(report.ai_summary) as SummarySection[];
+        } catch {
+          // Corrupt cache — fall through to regenerate below
+        }
       }
-    }
 
-    if (!summarySections) {
-      // Generate a fresh summary, then cache it asynchronously so the next
-      // page view is instant. We don't await the write — a DB failure here
-      // doesn't affect what the user sees.
+      if (!summarySections) {
+        try {
+          summarySections = await generateReportSummary(data, report.location_name ?? "Client");
+          // Cache the summary after the response is sent — after() guarantees
+          // this runs on serverless without blocking the client or risking
+          // termination before an unawaited promise resolves.
+          after(async () => {
+            try {
+              await admin
+                .from("reports")
+                .update({
+                  ai_summary:           JSON.stringify(summarySections),
+                  summary_generated_at: new Date().toISOString(),
+                })
+                .eq("token", token);
+            } catch {
+              // Cache write failure is non-fatal — next visit will regenerate
+            }
+          });
+        } catch (err) {
+          console.error("[report] summary failed:", err);
+        }
+      }
+    } else {
+      // ── Weekly: generate fresh, no caching ────────────────────────────────
+      // weekLabel is the Mon YYYY-MM-DD string already validated above.
       try {
-        summarySections = await generateReportSummary(data, report.location_name ?? "Client");
-        // Cache the summary after the response is sent — after() guarantees
-        // this runs on serverless without blocking the client or risking
-        // termination before an unawaited promise resolves.
-        after(async () => {
-          try {
-            await admin
-              .from("reports")
-              .update({
-                ai_summary:           JSON.stringify(summarySections),
-                summary_generated_at: new Date().toISOString(),
-              })
-              .eq("token", token);
-          } catch {
-            // Cache write failure is non-fatal — next visit will regenerate
-          }
-        });
+        summarySections = await generateReportSummary(
+          data,
+          report.location_name ?? "Client",
+          currentWeek ?? undefined,
+        );
       } catch (err) {
-        console.error("[report] summary failed:", err);
+        console.error("[report] weekly summary failed:", err);
       }
     }
   }
@@ -837,12 +849,11 @@ export default async function ReportPage({
             {/* Campaign breakdown — date-filtered in weekly mode */}
             <CampaignsTable meta={metaData} />
 
-            {/* AI Summary — all-time only; hidden in weekly mode (see comment on AISummary) */}
-            {!dateRange && (
-              <div className="mb-8">
-                <AISummary sections={summarySections} />
-              </div>
-            )}
+            {/* AI Summary — shown in both all-time and weekly modes.
+                All-time summary is cached 24h; weekly is generated fresh per visit. */}
+            <div className="mb-8">
+              <AISummary sections={summarySections} />
+            </div>
 
             {/* Appointment confirmation — med spa owner marks who showed */}
             {appointmentItems.length > 0 && (

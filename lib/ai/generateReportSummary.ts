@@ -33,7 +33,8 @@ Rules:
 
 // User message: the raw data snapshot for this report.
 // Keep this lean — Haiku charges per token and we only need the numbers.
-function buildUserMessage(data: GHLSyncResponse, locationName: string): string {
+// weekLabel: when set, the model knows it's analyzing a specific week rather than all-time.
+function buildUserMessage(data: GHLSyncResponse, locationName: string, weekLabel?: string): string {
   const pipelineLines = data.pipelines
     .slice(0, 5) // cap at 5 pipelines to keep the prompt short
     .map(
@@ -45,7 +46,10 @@ function buildUserMessage(data: GHLSyncResponse, locationName: string): string {
     )
     .join("\n");
 
+  const period = weekLabel ? `Week of ${weekLabel}` : "All time";
+
   return `Client: ${locationName}
+Period: ${period}
 Total contacts: ${data.contacts.toLocaleString()}
 Open opportunities: ${data.opportunities.toLocaleString()}
 Closed revenue: $${data.closedRevenue.toLocaleString()}
@@ -70,13 +74,14 @@ Return a JSON array of up to 5 sections.`;
 // us control rendering entirely in JSX.
 export async function generateReportSummary(
   data: GHLSyncResponse,
-  locationName: string
+  locationName: string,
+  weekLabel?: string,
 ): Promise<SummarySection[]> {
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 600,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserMessage(data, locationName) }],
+    messages: [{ role: "user", content: buildUserMessage(data, locationName, weekLabel) }],
   });
 
   // Extract the text content from the first content block.
