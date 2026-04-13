@@ -47,6 +47,12 @@ export async function GET(
     authUrl.searchParams.set("access_type", "offline");
     authUrl.searchParams.set("prompt", "consent");
   }
+  // Facebook: force the full permissions dialog even when the user has previously
+  // authorized the app. Without this, Meta shows a simplified "Continue as X" screen
+  // for the app owner that omits the granular permissions list.
+  if (provider === "facebook") {
+    authUrl.searchParams.set("auth_type", "rerequest");
+  }
 
   const response = NextResponse.redirect(authUrl.toString());
   // Store nonce in a short-lived cookie to verify on callback
