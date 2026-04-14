@@ -55,16 +55,23 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
 // so the user knows their click registered (the API call can take ~1s).
 // Two interleaved strands of dots oscillate in opposite vertical directions
 // with staggered delays — the wave propagation creates the helix illusion.
-function ShareLinkButton({ onToast }: { onToast: (msg: string) => void }) {
+//
+// locationId scopes the report to the currently-selected client — each med spa
+// gets its own permanent link. Null falls back to the single-location integration.
+function ShareLinkButton({ onToast, locationId }: { onToast: (msg: string) => void; locationId: string | null }) {
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
     if (loading) return;
     setLoading(true);
-    // Create (or retrieve existing) report URL, then copy to clipboard.
-    // The API upserts so repeated clicks always return the same persistent URL.
+    // Create (or retrieve existing) report URL for this location, then copy to clipboard.
+    // The API returns the same token on repeat calls — one persistent link per med spa.
     try {
-      const res = await fetch("/api/reports/create", { method: "POST" });
+      const res = await fetch("/api/reports/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locationId }),
+      });
       const data = await res.json();
       if (data.url) {
         await navigator.clipboard.writeText(data.url);
@@ -296,7 +303,7 @@ export default function Dashboard() {
                 }}
               />
               <DateRangePicker value={dateRange} onChange={setDateRange} />
-              <ShareLinkButton onToast={showToast} />
+              <ShareLinkButton onToast={showToast} locationId={currentLocationId} />
             </div>
           )}
         </div>
