@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ghlFetch } from "@/lib/ghl/api";
 
 const GHL_TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
 
@@ -30,7 +31,9 @@ export async function GET(request: NextRequest) {
 
   // Validate CSRF nonce
   const storedNonce = request.cookies.get("loc_oauth_nonce")?.value;
-  let parsedState: { orgId: string; nonce: string; locationId: string };
+  // locationId is optional in state — it's omitted when adding a new sub-account
+  // (the user picked the location in GHL's chooser; we get the id from the token response).
+  let parsedState: { orgId: string; nonce: string; locationId?: string };
   try {
     parsedState = JSON.parse(Buffer.from(state, "base64url").toString());
   } catch {
@@ -73,23 +76,44 @@ export async function GET(request: NextRequest) {
   };
 
   // GHL returns the locationId in the token response for sub-account connects.
-  // We validate it matches the one the user initiated the flow for — if they
-  // selected a different location in the GHL chooser we still store it, but
-  // we use the token response's locationId as the authoritative value.
+  // Use it as the authoritative value — it's correct even if the user picked a
+  // different location than the one the flow was initiated for.
   const tokenLocationId = tokens.locationId ?? parsedState.locationId;
   const tokenExpiresAt = tokens.expires_in
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : null;
 
+  // Fetch the location name and companyId so the row has a display name in the
+  // client switcher — especially important for new sub-account adds where no row
+  // existed yet and the name wouldn't be populated from anywhere else.
+  type GHLLocationDetail = { location?: { name?: string; companyId?: string } };
+  let locationName: string | undefined;
+  let companyId: string | undefined;
+  if (tokenLocationId) {
+    try {
+      const locRes = await ghlFetch(`/locations/${tokenLocationId}`, tokens.access_token);
+      if (locRes.ok) {
+        const locData = await locRes.json() as GHLLocationDetail;
+        locationName = locData.location?.name;
+        companyId = locData.location?.companyId;
+      }
+    } catch {
+      // Non-fatal — location will appear in the switcher with a blank name rather
+      // than blocking the connect flow. The user can rename it in GHL and reconnect.
+    }
+  }
+
   const admin = createAdminClient();
 
-  // Update the ghl_locations row with the location token.
-  // If the row doesn't exist yet (location wasn't synced via agency connect),
-  // upsert it so direct sub-account connects also work.
+  // Upsert the ghl_locations row with the token + name.
+  // Creates the row if it doesn't exist (new sub-account add via chooser).
+  // Updates token fields if the row already exists (reconnect flow).
   await admin.from("ghl_locations").upsert(
     {
       org_id: parsedState.orgId,
       location_id: tokenLocationId,
+      ...(locationName && { location_name: locationName }),
+      ...(companyId && { company_id: companyId }),
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token ?? null,
       token_expires_at: tokenExpiresAt,

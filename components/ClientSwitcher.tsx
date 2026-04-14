@@ -19,8 +19,10 @@ type Props = {
 };
 
 // Vercel-style searchable client switcher.
-// Rendered in the dashboard header when the connected GHL account has 2+ locations.
-// Hidden entirely for single-location connections (no dropdown needed).
+// Rendered in the dashboard header — always visible so the user can add new sub-accounts
+// even when only one (or zero) locations are connected.
+// "Add client" redirects to /api/integrations/loc/connect (no locationId), which sends
+// the user through GHL's chooser UI; the callback creates the ghl_locations row.
 //
 // Why we receive locations as props rather than fetching internally:
 // The dashboard already loads ghl_locations on mount to set the initial location.
@@ -47,9 +49,6 @@ export default function ClientSwitcher({ locations, currentId, currentName, onSe
   useEffect(() => {
     if (open) searchRef.current?.focus();
   }, [open]);
-
-  // Nothing to show for single-location connections
-  if (locations.length < 2) return null;
 
   const filtered = search
     ? locations.filter((l) =>
@@ -105,7 +104,9 @@ export default function ClientSwitcher({ locations, currentId, currentName, onSe
             {/* Location list */}
             <div className="max-h-56 overflow-y-auto py-1">
               {filtered.length === 0 ? (
-                <p className="text-[11px] text-[#a3a3a3] px-3 py-3 text-center">No clients found</p>
+                <p className="text-[11px] text-[#a3a3a3] px-3 py-3 text-center">
+                  {locations.length === 0 ? "No clients connected yet" : "No clients found"}
+                </p>
               ) : (
                 filtered.map((loc) => (
                   <button
@@ -130,6 +131,20 @@ export default function ClientSwitcher({ locations, currentId, currentName, onSe
                   </button>
                 ))
               )}
+            </div>
+
+            {/* Add client — navigates to loc/connect with no locationId so GHL shows
+                the chooser. The callback creates or updates the ghl_locations row. */}
+            <div className="border-t border-[#f5f5f5] p-1.5">
+              <a
+                href="/api/integrations/loc/connect"
+                className="w-full flex items-center gap-2 px-2.5 py-2 text-[11px] text-[#525252] hover:bg-[#f9f9f9] hover:text-[#0a0a0a] rounded-md transition-colors"
+              >
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" className="shrink-0">
+                  <path d="M5.5 1.5v8M1.5 5.5h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                </svg>
+                Add client
+              </a>
             </div>
           </motion.div>
         )}

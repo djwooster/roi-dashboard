@@ -285,7 +285,7 @@ export default function Dashboard() {
           </div>
           {isOverview && (
             <div className="flex items-center gap-2">
-              {/* Client switcher — only visible when 2+ GHL locations exist (agency mode) */}
+              {/* Client switcher — always visible so users can add new sub-accounts */}
               <ClientSwitcher
                 locations={locations}
                 currentId={currentLocationId}

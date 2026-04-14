@@ -21,10 +21,10 @@ export async function GET(request: NextRequest) {
   const orgId = user.user_metadata?.org_id;
   if (!orgId) return NextResponse.redirect(new URL("/onboarding", request.url));
 
-  const locationId = request.nextUrl.searchParams.get("locationId");
-  if (!locationId) {
-    return NextResponse.json({ error: "Missing locationId" }, { status: 400 });
-  }
+  // locationId is optional — when present the user is reconnecting an existing
+  // sub-account; when absent (Add client flow) GHL shows a chooser and returns
+  // the selected locationId in the token response.
+  const locationId = request.nextUrl.searchParams.get("locationId") ?? undefined;
 
   const clientId = process.env.GHL_CLIENT_ID;
   if (!clientId) {
@@ -37,8 +37,9 @@ export async function GET(request: NextRequest) {
   const callbackUrl = `${base}/api/integrations/loc/callback`;
 
   const nonce = randomBytes(16).toString("hex");
-  // Include locationId in state so the callback knows which location to update
-  const state = Buffer.from(JSON.stringify({ orgId, nonce, locationId })).toString("base64url");
+  // locationId included only when reconnecting; omitted for new sub-account adds.
+  // The callback uses tokens.locationId (from GHL's response) as the authoritative value.
+  const state = Buffer.from(JSON.stringify({ orgId, nonce, ...(locationId && { locationId }) })).toString("base64url");
 
   const authUrl = new URL(GHL_AUTH_URL);
   authUrl.searchParams.set("client_id", clientId);
