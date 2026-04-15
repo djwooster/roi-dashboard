@@ -149,9 +149,12 @@ Keep this updated when adding routes, components, or lib files.
 - Agency/multi-location OAuth → token in `ghl_locations`
 - Any route calling GHL must try `getValidLocationToken` first, then fall back to `getValidGHLToken` — never assume one table
 
-**GHL scopes — app config and oauth-config.ts must match:**
-- Enabling a scope in the GHL Marketplace app only permits it; the token only receives scopes listed in `lib/oauth-config.ts` at connect time
-- Changing either side requires the user to disconnect + reconnect
+**GHL scopes — two separate scope lists, both must be kept in sync:**
+- Agency OAuth: scopes live in `lib/oauth-config.ts`
+- Sub-account (loc) OAuth: scopes are hardcoded in `app/api/integrations/loc/connect/route.ts` (`const SCOPES = [...]`) — **not** in oauth-config.ts
+- Enabling a scope in the GHL Marketplace app only permits it; the token only receives scopes requested in the OAuth URL at connect time
+- Changing either side requires the user to disconnect + reconnect to get a new token
+- The agency token does **not** have sub-account calendar scopes — `getValidLocationToken` must return a valid loc token for calendar fetches to work
 
 **Billing enforcement:**
 - `proxy.ts` reads `stripe_subscription_status` from JWT user metadata (not DB)

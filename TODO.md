@@ -14,10 +14,15 @@
 - Needs `campaign_start_at` column on `reports` table
 - Should appear in weekly and all-time views
 
-### 3. Meta App Review (in progress — ~1 week)
+### 3. Meta App Review — submit today
 - Submit at developers.facebook.com
 - Scopes: `ads_read`, `ads_management`, `leads_retrieval`
 - Campaigns table + summary bar will populate once approved
+
+### 4. Week-over-week trend on report page
+- Show leads/appointments/shows this week vs. last week (delta + % change)
+- Data is available live from GHL — no metrics cache needed for a two-week window
+- Display as a small trend row beneath the funnel overview on the report page
 
 ---
 
