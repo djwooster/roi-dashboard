@@ -6,7 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 // this route is standalone — it's not part of the generic [provider] OAuth flow.
 // GHL blocks redirect URIs containing "ghl", so we use /loc/ as a neutral path.
 const GHL_AUTH_URL = "https://marketplace.gohighlevel.com/oauth/chooselocation";
-const SCOPES = ["contacts.readonly", "opportunities.readonly"];
+const SCOPES = [
+  "contacts.readonly",
+  "opportunities.readonly",
+  // Calendar scopes required by fetchAppointments — must also be enabled in the
+  // GHL Marketplace app settings or GHL will silently omit them from the token.
+  "calendars.readonly",
+  "calendars/events.readonly",
+];
 
 // GET /api/integrations/loc/connect?locationId={id}
 // Builds the GHL sub-account OAuth URL for a specific location.
