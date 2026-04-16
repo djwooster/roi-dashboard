@@ -9,8 +9,14 @@ export default function Footer() {
           &copy; {year} SourceIQ. All rights reserved.
         </p>
         <div className="flex items-center gap-5">
-          <a href="/privacy/data-deletion" className="text-xs text-[#0a0a0a]/30 hover:text-[#0a0a0a]/60 transition-colors duration-200">
+          <a href="/privacy" className="text-xs text-[#0a0a0a]/30 hover:text-[#0a0a0a]/60 transition-colors duration-200">
             Privacy Policy
+          </a>
+          <a href="/terms" className="text-xs text-[#0a0a0a]/30 hover:text-[#0a0a0a]/60 transition-colors duration-200">
+            Terms of Service
+          </a>
+          <a href="/privacy/data-deletion" className="text-xs text-[#0a0a0a]/30 hover:text-[#0a0a0a]/60 transition-colors duration-200">
+            Data Deletion
           </a>
           <a href="mailto:hello@sourceiq.app" className="text-xs text-[#0a0a0a]/30 hover:text-[#0a0a0a]/60 transition-colors duration-200">
             hello@sourceiq.app

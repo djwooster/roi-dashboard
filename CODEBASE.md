@@ -51,7 +51,9 @@ Keep this updated when adding routes, components, or lib files.
 | `/forgot-password` | none | Sends Supabase reset email with redirect to `/reset-password`. |
 | `/reset-password` | none | New password form. Calls `supabase.auth.updateUser`. |
 | `/auth/callback` | none | PKCE callback. Exchanges code for session. Redirects to `/reset-password` if `type=recovery`, else `/onboarding`. |
-| `/privacy/data-deletion` | none | Compliance page — must remain public. |
+| `/privacy` | none | Full privacy policy. Required by Meta App Review. Must remain public. |
+| `/terms` | none | Terms of service. Must remain public. |
+| `/privacy/data-deletion` | none | Data deletion instructions page. Linked from Meta App Dashboard as the data deletion status URL. Must remain public. |
 | `/webhooks/meta/data-deletion` | none | Meta data deletion webhook — must remain public. |
 | `/invite/[token]` | none | Invite acceptance — DB table exists, UI not yet built. |
 | `/confirm-email` | none | Post-signup confirmation landing page. |
@@ -159,6 +161,19 @@ Keep this updated when adding routes, components, or lib files.
 **Billing enforcement:**
 - `proxy.ts` reads `stripe_subscription_status` from JWT user metadata (not DB)
 - Stripe webhook updates both the DB and the user's JWT metadata on every event
+
+**Account deletion — order of operations (`DELETE /api/account`):**
+- Must delete all child rows before calling `admin.auth.admin.deleteUser()` or Supabase rejects it
+- `profiles` has a FK to `auth.users` — delete it last among DB rows, immediately before `deleteUser`
+- Full deletion order: `appointment_confirmations` → `metrics` → `ghl_locations` → `reports` → `integrations` → `members` → `invites` → `organizations` → `profiles` → `deleteUser`
+- If you add a new org-scoped table, add its deletion here too
+
+**Meta App Review — compliance pages (must stay public and reachable):**
+- Privacy policy: `sourceiq.app/privacy`
+- Terms of service: `sourceiq.app/terms`
+- Data deletion instructions: `sourceiq.app/privacy/data-deletion`
+- Data deletion webhook: `sourceiq.app/webhooks/meta/data-deletion`
+- Only `ads_read` + `public_profile` are submitted for review — do not add other Marketing API permissions without a concrete feature need
 
 **Type imports:**
 - GHL types → `lib/ghl/types.ts`
