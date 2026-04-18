@@ -52,7 +52,7 @@ function StageCard({ label, count, rate, index }: StageProps) {
       transition={{ duration: 0.3, delay: index * 0.06, ease: "easeOut" }}
       className="flex-1 min-w-0"
     >
-      <p className="text-[11px] font-medium text-[#a3a3a3] uppercase tracking-wider mb-1.5">
+      <p className="text-[11px] font-medium text-[#737373] uppercase tracking-wider mb-1.5">
         {label}
       </p>
       <div className="flex items-center gap-2">
@@ -181,7 +181,7 @@ export default function FunnelSnapshot({ ghlData, metaData, loading }: FunnelSna
     return (
       <div className="border border-[#e5e5e5] rounded-lg p-5">
         <h2 className="text-sm font-semibold text-[#0a0a0a] mb-1">Funnel Overview</h2>
-        <p className="text-sm text-[#d4d4d4]">Connect GHL to see your funnel data.</p>
+        <p className="text-sm text-[#a3a3a3]">Connect GHL to see your funnel data.</p>
       </div>
     );
   }

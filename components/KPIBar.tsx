@@ -60,7 +60,7 @@ function DemoKPICard({ label, rawValue, format, goal, goalLabel, lowerBetter, de
       transition={{ duration: 0.3, delay: index * 0.05, ease: "easeOut" }}
       className="flex-1 min-w-0 border border-[#e5e5e5] rounded-lg p-4 bg-white"
     >
-      <p className="text-[11px] font-medium text-[#a3a3a3] uppercase tracking-wider mb-2">{label}</p>
+      <p className="text-[11px] font-medium text-[#737373] uppercase tracking-wider mb-2">{label}</p>
       <div className="flex items-end justify-between gap-2">
         <p className="text-2xl font-semibold text-[#0a0a0a] tracking-tight leading-none tabular-nums">
           {fmtRaw(animated, format)}
@@ -116,11 +116,11 @@ function LiveKPICard({ label, value, sublabel, index }: { label: string; value: 
       transition={{ duration: 0.3, delay: index * 0.05, ease: "easeOut" }}
       className="flex-1 min-w-0 border border-[#e5e5e5] rounded-lg p-4 bg-white"
     >
-      <p className="text-[11px] font-medium text-[#a3a3a3] uppercase tracking-wider mb-2">{label}</p>
+      <p className="text-[11px] font-medium text-[#737373] uppercase tracking-wider mb-2">{label}</p>
       <p className={`text-2xl font-semibold tracking-tight leading-none ${value ? "text-[#0a0a0a]" : "text-[#d4d4d4]"}`}>
         {value ?? "—"}
       </p>
-      <p className="text-[11px] text-[#e5e5e5] mt-1">{value ? sublabel : "No data yet"}</p>
+      <p className="text-[11px] text-[#a3a3a3] mt-1">{value ? sublabel : "No data yet"}</p>
     </motion.div>
   );
 }

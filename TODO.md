@@ -14,15 +14,22 @@
 - Needs `campaign_start_at` column on `reports` table
 - Should appear in weekly and all-time views
 
-### 3. Meta App Review — submit today
-- Submit at developers.facebook.com
-- Scopes: `ads_read`, `ads_management`, `leads_retrieval`
-- Campaigns table + summary bar will populate once approved
+### 3. Meta App Review — submitted 2026-04-17, awaiting approval (~10 days)
+- Submitted scopes: `ads_read` + `public_profile` only
+- Do NOT push changes to Facebook OAuth flow, integrations UI, or callback routes while review is in flight
+- Once approved: bump Graph API version from v19.0 → v21.0 in `app/api/meta/insights/route.ts` and `app/api/meta/campaigns/route.ts`
 
 ### 4. Week-over-week trend on report page
 - Show leads/appointments/shows this week vs. last week (delta + % change)
 - Data is available live from GHL — no metrics cache needed for a two-week window
 - Display as a small trend row beneath the funnel overview on the report page
+
+---
+
+### 5. Refine onboarding screen
+- Current flow works but UX can be improved
+- Review copy, field layout, visual polish, and first-impression feel
+- `app/onboarding/page.tsx`
 
 ---
 
@@ -53,10 +60,11 @@ Demo: mock med spa numbers (247→89→61→15) + guarantee badge. Live: from `g
 ## Before First Paying Customer
 
 - [x] **GHL App** — sub-account app with contacts/opportunities/calendars scopes. One OAuth per location.
-- [ ] **Meta App Review** — in progress (~1 week). Scopes: `ads_read`, `ads_management`, `leads_retrieval`
-- [ ] **Meta Long-Lived Token** — build `lib/meta/getValidToken.ts`, exchange short-lived token after OAuth
+- [ ] **Meta App Review** — submitted 2026-04-17, awaiting approval. Scopes: `ads_read` + `public_profile`
+- [x] **Meta Long-Lived Token** — `lib/meta/getValidToken.ts` built, re-exchanges tokens within 7-day expiry buffer
 - [ ] **Stripe Activate** — create product/price, add env vars, register webhook, set `BILLING_ENFORCEMENT=true`
-- [ ] **Meta Data Deletion Webhook** — Settings → Advanced → Data Deletion Requests in Meta Developer portal
+- [x] **Meta Data Deletion Webhook** — live at `sourceiq.app/webhooks/meta/data-deletion`, registered in Meta Developer portal
+- [ ] **Bot signup prevention** — bots hitting /signup; enable Supabase email confirmation or add Cloudflare Turnstile
 
 ---
 
